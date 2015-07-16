@@ -78,22 +78,19 @@ public class PitayaServer implements Runnable {
 			byte[] buffer = new byte[4096];
 			input.read(buffer);
 			String data = new String(buffer,"UTF-8");
-			//System.out.println(data);
 			
 			int indexStart = data.indexOf("/?")+2;
 			int indexEnd = data.indexOf("HTTP")-1;
 			String params = data.substring(indexStart,indexEnd);
-			System.out.println(params);
 			
-			token = params.substring(0,params.indexOf("&"));
-			params = params.substring(params.indexOf("&"));
+			token = params.substring(2,params.indexOf("&"));
+			params = params.substring(params.indexOf("&")+1);
 			
-			user = Integer.parseInt(params.substring(1,params.indexOf("&")));
-			params = params.substring(params.indexOf("&"));
+			user = Integer.parseInt(params.substring(2,params.indexOf("&")));
+			params = params.substring(params.indexOf("&")+1);
 			
-			pitayaNum = Integer.parseInt(params.substring(1));
+			pitayaNum = Integer.parseInt(params.substring(2));
 			
-			System.out.println(token+" "+user+" "+pitayaNum);
 			
 		}catch(IOException e){
 			System.out.println("Can't open input stream from connection");
