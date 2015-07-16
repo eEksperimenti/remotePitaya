@@ -31,7 +31,9 @@ public class PitayaServer implements Runnable {
 							+ client.getInetAddress() + "\n Port: "
 							+ client.getPort());
 					getParameters(client);
-					
+					if (isTokenValid()){
+						
+					}
 					
 				}
 				
@@ -95,6 +97,11 @@ public class PitayaServer implements Runnable {
 		}catch(IOException e){
 			System.out.println("Can't open input stream from connection");
 		}
+	}
+	public boolean isTokenValid(){
+		
+		//To do: Look in booked database for token
+		return true;
 	}
 
 }
