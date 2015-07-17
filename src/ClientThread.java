@@ -37,15 +37,12 @@ public class ClientThread implements Runnable{
 		    
 		    while ((request = in.readLine()) != null){
 		    		inbox.setRequest(request);
-		    		String response = inbox.getRespons();
+		    		
 		    }
 		    
 	    
 		    //out.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
