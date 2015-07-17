@@ -7,7 +7,6 @@ public class PitayaServer implements Runnable {
 	private ServerSocket server;
 	private int port;
 	private boolean running;
-	private boolean connected;
 	
 	private String token = "";
 	private int pitayaNum = -1;
@@ -16,7 +15,6 @@ public class PitayaServer implements Runnable {
 	public PitayaServer(int port) {
 		this.port = port;
 		this.running = false;
-		this.connected = false;
 	}
 
 	@Override
@@ -26,7 +24,6 @@ public class PitayaServer implements Runnable {
 			try {
 				Socket client = this.server.accept();
 				if (client.isConnected()) {
-					this.connected = true;
 					System.out.println("Client connected!\n IP:"
 							+ client.getInetAddress() + "\n Port: "
 							+ client.getPort());
@@ -81,6 +78,17 @@ public class PitayaServer implements Runnable {
 			input.read(buffer);
 			String data = new String(buffer,"UTF-8");
 			
+			PrintWriter out = new PrintWriter(client.getOutputStream());
+			 
+		 	String response ="<b>Hello user!</b></br> You are now connected to our server for remote experimenting.";
+		    out.println("HTTP/1.1 200 OK");
+		    out.println("Content-Type: text/html");
+		    out.println("Content-Length: " + response.length());
+		    out.println();
+		    out.println(response);
+		    out.flush();
+		    out.close();
+			    
 			int indexStart = data.indexOf("/?")+2;
 			int indexEnd = data.indexOf("HTTP")-1;
 			String params = data.substring(indexStart,indexEnd);
@@ -90,12 +98,14 @@ public class PitayaServer implements Runnable {
 			
 			user = Integer.parseInt(params.substring(2,params.indexOf("&")));
 			params = params.substring(params.indexOf("&")+1);
-			
+
 			pitayaNum = Integer.parseInt(params.substring(2));
-			
-			
+
+						
 		}catch(IOException e){
 			System.out.println("Can't open input stream from connection");
+		}catch (StringIndexOutOfBoundsException e){
+			return;
 		}
 	}
 	public boolean isTokenValid(){
