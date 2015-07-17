@@ -7,6 +7,7 @@ public class PitayaServer implements Runnable {
 	private ServerSocket server;
 	private int port;
 	private boolean running;
+	public static String data = "";
 	
 	private String token = "";
 	private int pitayaNum = -1;
@@ -28,8 +29,11 @@ public class PitayaServer implements Runnable {
 							+ client.getInetAddress() + "\n Port: "
 							+ client.getPort());
 					getParameters(client);
+					
 					if (isTokenValid()){
-						
+						Inbox inbox = Inbox.getInstance();
+						ClientThread cThread=new ClientThread(client,inbox);
+						new Thread(cThread).start();
 					}
 					
 				}
@@ -77,17 +81,6 @@ public class PitayaServer implements Runnable {
 			byte[] buffer = new byte[4096];
 			input.read(buffer);
 			String data = new String(buffer,"UTF-8");
-			
-			PrintWriter out = new PrintWriter(client.getOutputStream());
-			 
-		 	String response ="<b>Hello user!</b></br> You are now connected to our server for remote experimenting.";
-		    out.println("HTTP/1.1 200 OK");
-		    out.println("Content-Type: text/html");
-		    out.println("Content-Length: " + response.length());
-		    out.println();
-		    out.println(response);
-		    out.flush();
-		    out.close();
 			    
 			int indexStart = data.indexOf("/?")+2;
 			int indexEnd = data.indexOf("HTTP")-1;
