@@ -3,8 +3,6 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.net.InetSocketAddress;
 import java.net.Socket;
 
 
@@ -22,27 +20,35 @@ public class ClientThread implements Runnable{
 		try {
 			
 			String header ="HTTP/1.1 200 OK\nContent-Type: text/html";
-		 	String data ="<b>Hello user!</b></br> You are now connected to our server for remote experimenting.</br>";
+		 	String response ="<b>Hello user!</b></br> You are now connected to our server for remote experimenting.</br>";
+		 	String request="";
 		 	
 	    	BufferedWriter  out = new BufferedWriter(new OutputStreamWriter(client.getOutputStream(),"UTF-8"));
 	    	BufferedReader 	in = new BufferedReader(new InputStreamReader(client.getInputStream(),"UTF-8"));
 
 		    out.write(header+"\n");
-		    out.write("Content-Length: " + data.length()+"\r\n");
+		    out.write("Content-Length: " + response.length()+"\r\n");
 		    out.write("\r\n");
-		    out.write(data+"\r\n");
+		    out.write(response+"\r\n");
 		    out.write("\r\n");
 		    out.flush();
-		    String request,response ="";
 		    
-		    while ((request = in.readLine()) != null){
+		    while (true){
+		    		request = in.readLine();
 		    		inbox.setRequest(request);
+		    		response = inbox.getResponse();
+		    		
+		    		out.write(header+"\n");
+		   		    out.write("Content-Length: " + response.length()+"\r\n");
+		   		    out.write("\r\n");
+		   		    out.write(response+"\r\n");
+		   		    out.write("\r\n");
+		   		    out.flush();
 		    		
 		    }
 		    
-	    
-		    //out.close();
 		} catch (IOException e) {
+			//out.close();
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
