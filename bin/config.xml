@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<server 
+		port="3000"/>
+<database
+		ip="92.15.885.2"
+		username="root"
+		pass="rootko"
+		dbname="phpscheduler"/>
+<pitaya num="1"
+		ip="192.168.1.101"
+		experiment="zarnica"
+		/>
+<pitaya num="2"
+		ip="192.168.1.101"
+		experiment="celica"
+		/>
+<pitaya num="3"
+		ip="192.168.1.102"
+		experiment="xxy"
+		/>

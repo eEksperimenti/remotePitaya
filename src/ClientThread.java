@@ -18,7 +18,6 @@ public class ClientThread implements Runnable {
 	public void run() {
 
 		try {
-
 			String header = "HTTP/1.1 200 OK\nContent-Type: text/html";
 			String response = "<b>Hello user!</b></br> You are now connected to our server for remote experimenting.</br>";
 			String request = "";
@@ -44,7 +43,6 @@ public class ClientThread implements Runnable {
 				out.write(response + "\r\n");
 				out.write("\r\n");
 				out.flush();
-
 			}
 
 		} catch (IOException e) {

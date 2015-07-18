@@ -1,3 +1,4 @@
+import java.awt.image.LookupTable;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -8,7 +9,7 @@ public class PitayaServer implements Runnable {
 	private int port;
 	private boolean running;
 	public static String data = "";
-	
+
 	private String token = "";
 	private int pitayaNum = -1;
 	private int user = -1;
@@ -20,7 +21,9 @@ public class PitayaServer implements Runnable {
 
 	@Override
 	public void run() {
+
 		openServerSocket();
+
 		while (this.running) {
 			try {
 				Socket client = this.server.accept();
@@ -28,16 +31,21 @@ public class PitayaServer implements Runnable {
 					System.out.println("Client connected!\n IP:"
 							+ client.getInetAddress() + "\n Port: "
 							+ client.getPort());
+
 					getParameters(client);
-					
-					if (isTokenValid()){
+
+					if (isTokenValid()) {
+
 						Inbox inbox = Inbox.getInstance();
-						ClientThread cThread=new ClientThread(client,inbox);
+						ClientThread cThread = new ClientThread(client, inbox);
 						new Thread(cThread).start();
+
+						PitayaThread pThread = new PitayaThread(Main.lookupTable[pitayaNum-1],inbox);
+						new Thread(pThread).start();
 					}
-					
+
 				}
-				
+
 			} catch (IOException e) {
 				if (!running && server.isClosed())
 					try {
@@ -62,7 +70,8 @@ public class PitayaServer implements Runnable {
 			return;
 		}
 		this.running = true;
-		System.out.println("Service  started.\nListening on port: "+server.getLocalPort());
+		System.out.println("Service  started.\nListening on port: "
+				+ server.getLocalPort());
 	}
 
 	public void stopService() {
@@ -75,35 +84,36 @@ public class PitayaServer implements Runnable {
 			}
 		}
 	}
-	public void getParameters(Socket client){
+
+	public void getParameters(Socket client) {
 		try {
 			InputStream input = client.getInputStream();
 			byte[] buffer = new byte[4096];
 			input.read(buffer);
-			String data = new String(buffer,"UTF-8");
-			    
-			int indexStart = data.indexOf("/?")+2;
-			int indexEnd = data.indexOf("HTTP")-1;
-			String params = data.substring(indexStart,indexEnd);
-			
-			token = params.substring(2,params.indexOf("&"));
-			params = params.substring(params.indexOf("&")+1);
-			
-			user = Integer.parseInt(params.substring(2,params.indexOf("&")));
-			params = params.substring(params.indexOf("&")+1);
+			String data = new String(buffer, "UTF-8");
+
+			int indexStart = data.indexOf("/?") + 2;
+			int indexEnd = data.indexOf("HTTP") - 1;
+			String params = data.substring(indexStart, indexEnd);
+
+			token = params.substring(2, params.indexOf("&"));
+			params = params.substring(params.indexOf("&") + 1);
+
+			user = Integer.parseInt(params.substring(2, params.indexOf("&")));
+			params = params.substring(params.indexOf("&") + 1);
 
 			pitayaNum = Integer.parseInt(params.substring(2));
 
-						
-		}catch(IOException e){
+		} catch (IOException e) {
 			System.out.println("Can't open input stream from connection");
-		}catch (StringIndexOutOfBoundsException e){
+		} catch (StringIndexOutOfBoundsException e) {
 			return;
 		}
 	}
-	public boolean isTokenValid(){
-		
-		//To do: Look in booked database for token
+
+	public boolean isTokenValid() {
+
+		// To do: Look in booked database for token
 		return true;
 	}
 
