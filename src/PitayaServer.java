@@ -32,9 +32,9 @@ public class PitayaServer implements Runnable {
 							+ client.getInetAddress() + "\n Port: "
 							+ client.getPort());
 
-					getParameters(client);
+					
 
-					if (isTokenValid()) {
+					if (isTokenValid() && getParameters(client)) {
 
 						Inbox inbox = Inbox.getInstance();
 						ClientThread cThread = new ClientThread(client, inbox);
@@ -85,7 +85,7 @@ public class PitayaServer implements Runnable {
 		}
 	}
 
-	public void getParameters(Socket client) {
+	public boolean getParameters(Socket client) {
 		try {
 			InputStream input = client.getInputStream();
 			byte[] buffer = new byte[4096];
@@ -103,12 +103,16 @@ public class PitayaServer implements Runnable {
 			params = params.substring(params.indexOf("&") + 1);
 
 			pitayaNum = Integer.parseInt(params.substring(2));
+			
+			if (pitayaNum > Main.lookupTable.length)
+				return false;
 
 		} catch (IOException e) {
 			System.out.println("Can't open input stream from connection");
 		} catch (StringIndexOutOfBoundsException e) {
-			return;
+			return false;
 		}
+		return true;
 	}
 
 	public boolean isTokenValid() {

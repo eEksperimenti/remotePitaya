@@ -10,7 +10,7 @@ import org.jsoup.select.Elements;
 public class Main {
 	static boolean serviceRunning = false;
 	private static PitayaServer service;
-	private static int port=-1;
+	static int port=-1;
 	static String[] lookupTable;
 	static String dbIP,dbName,dbUser,dbPass="";
 
@@ -81,6 +81,7 @@ public class Main {
 	}
 	public static boolean readConfigFile(){
 		try {
+			
 			Document doc = Jsoup.parse(new File("src/config.xml"),"UTF-8","");
 			Element server = doc.getElementsByTag("server").first();
 				port = Integer.parseInt(server.attr("port"));

@@ -1,8 +1,9 @@
 
 public class Inbox {
 	private static Inbox instance = null;
-	private String respons="";
+	private String response="";
 	private String request="";
+	private boolean newRequest=false;
 	
 	protected Inbox(){}
 	public static Inbox getInstance() {
@@ -15,11 +16,23 @@ public class Inbox {
 		synchronized (request) {
 			this.request=request;
 		}
+		this.newRequest=true;
+	}
+	public String getRequest(){
+		return this.request;
 	}
 	public String getResponse(){
-		synchronized (respons) {
-			return this.respons;
+		synchronized (response) {
+			return this.response;
 		}
-		
+	}
+	public void setResponse(String response){
+		synchronized (response) {
+			this.response=response;
+		}
+	}
+	
+	public boolean isNewRequest(){
+		return this.newRequest;
 	}
 }
