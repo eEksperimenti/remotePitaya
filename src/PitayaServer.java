@@ -37,11 +37,16 @@ public class PitayaServer implements Runnable {
 					if (isTokenValid() && getParameters(client)) {
 
 						Inbox inbox = Inbox.getInstance();
-						ClientThread cThread = new ClientThread(client, inbox);
+						/*ClientThread cThread = new ClientThread(client, inbox);
 						new Thread(cThread).start();
 
 						PitayaThread pThread = new PitayaThread(Main.lookupTable[pitayaNum-1],inbox);
-						new Thread(pThread).start();
+						new Thread(pThread).start();*/
+						RequestHandler request = new RequestHandler(client, inbox);
+						new Thread(request).start();
+						ResponseHandler response = new ResponseHandler(client,Main.lookupTable[pitayaNum-1],inbox);
+						new Thread(response).start();
+
 					}
 
 				}

@@ -42,7 +42,7 @@ public class ClientThread implements Runnable {
 				request = in.readLine();
 				long start = System.nanoTime();
 				inbox.setRequest(request);
-				 response = inbox.getResponse();
+				response = inbox.getResponse();
 				 
 				 out.write(response);	
 				 out.flush();

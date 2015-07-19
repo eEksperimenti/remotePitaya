@@ -3,6 +3,8 @@ public class Inbox {
 	private static Inbox instance = null;
 	private String response="";
 	private String request="";
+	
+	
 	private boolean newRequest=false;
 	
 	protected Inbox(){}
