@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <server 
-		port="3000"/>
+		port="5950"/>
 <database
-		ip="92.15.885.2"
+		ip="194.249.0.123"
 		username="root"
 		pass="rootko"
 		dbname="phpscheduler"/>
 <pitaya num="1"
-		ip="192.168.1.101"
+		ip="192.168.94.132"
 		experiment="zarnica"
 		/>
 <pitaya num="2"

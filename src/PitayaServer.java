@@ -8,7 +8,6 @@ public class PitayaServer implements Runnable {
 	private ServerSocket server;
 	private int port;
 	private boolean running;
-	public static String data = "";
 
 	private String token = "";
 	private int pitayaNum = -1;
@@ -96,6 +95,7 @@ public class PitayaServer implements Runnable {
 			byte[] buffer = new byte[4096];
 			input.read(buffer);
 			String data = new String(buffer, "UTF-8");
+			System.out.println("Request: "+data);
 
 			int indexStart = data.indexOf("/?") + 2;
 			int indexEnd = data.indexOf("HTTP") - 1;

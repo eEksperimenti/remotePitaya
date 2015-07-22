@@ -13,16 +13,12 @@ public class RequestHandler implements Runnable {
 		this.client = client;
 		this.inbox = inbox;
 		
-		
-		
-		
 	}
 
 	public void run() {
 		
 		try {
-			BufferedReader in = new BufferedReader(new InputStreamReader(
-					client.getInputStream(), "UTF-8"));
+			BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream(), "UTF-8"));
 			String request = "";
 			while (true) {
 				request = in.readLine();

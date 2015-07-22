@@ -35,7 +35,7 @@ public class Main {
 
 			case "start":
 				if(readConfigFile()){
-					service = new PitayaServer(3000);
+					service = new PitayaServer(port);
 					new Thread(service).start();
 					serviceRunning = true;
 				}
@@ -82,7 +82,7 @@ public class Main {
 	public static boolean readConfigFile(){
 		try {
 			
-			Document doc = Jsoup.parse(new File("src/config.xml"),"UTF-8","");
+			Document doc = Jsoup.parse(new File("config/config.xml"),"UTF-8","");
 			Element server = doc.getElementsByTag("server").first();
 				port = Integer.parseInt(server.attr("port"));
 				
