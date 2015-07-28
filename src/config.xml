@@ -7,7 +7,7 @@
 		pass="rootko"
 		dbname="phpscheduler"/>
 <pitaya num="1"
-		ip="192.168.94.132"
+		ip="192.168.94.134"
 		experiment="zarnica"
 		/>
 <pitaya num="2"

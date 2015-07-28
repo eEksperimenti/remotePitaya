@@ -2,12 +2,9 @@
 public class Inbox {
 	private static Inbox instance = null;
 	private String response="";
-	
 	private String request="";
-	
-	
 	private boolean newRequest=false;
-	
+		
 	protected Inbox(){}
 	public static Inbox getInstance() {
 	      if(instance == null) {
@@ -15,16 +12,22 @@ public class Inbox {
 	      }
 	      return instance;
 	   }
-	public void setRequest(String data){
-		synchronized (request) {
-			this.request=request;
-		}
-		this.newRequest=true;
+	public synchronized void setRequest(String data){
+			this.request=data;
+			System.out.println("Inbox req. set: "+this.request);
+			this.newRequest=true;
+		
 	}
-	public String getRequest(){
-		return this.request;
+	public synchronized String getRequest(){
+		String newRequest= this.request;
+		this.request="";
+		this.newRequest=false;
+		return newRequest;
 	}
-	public String getResponse(){
+	public boolean isNewRequest(){
+		return this.newRequest;
+	}
+	/*public String getResponse(){
 		synchronized (response) {
 			return this.response;
 		}
@@ -37,5 +40,5 @@ public class Inbox {
 	
 	public boolean isNewRequest(){
 		return this.newRequest;
-	}
+	}*/
 }

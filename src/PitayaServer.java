@@ -12,6 +12,7 @@ public class PitayaServer implements Runnable {
 	private String token = "";
 	private int pitayaNum = -1;
 	private int user = -1;
+	private String data="";
 
 	public PitayaServer(int port) {
 		this.port = port;
@@ -36,11 +37,8 @@ public class PitayaServer implements Runnable {
 					if (isTokenValid() && getParameters(client)) {
 
 						Inbox inbox = Inbox.getInstance();
-						/*ClientThread cThread = new ClientThread(client, inbox);
-						new Thread(cThread).start();
-
-						PitayaThread pThread = new PitayaThread(Main.lookupTable[pitayaNum-1],inbox);
-						new Thread(pThread).start();*/
+						inbox.setRequest(data);
+						
 						RequestHandler request = new RequestHandler(client, inbox);
 						new Thread(request).start();
 						ResponseHandler response = new ResponseHandler(client,Main.lookupTable[pitayaNum-1],inbox);
@@ -94,8 +92,8 @@ public class PitayaServer implements Runnable {
 			InputStream input = client.getInputStream();
 			byte[] buffer = new byte[4096];
 			input.read(buffer);
-			String data = new String(buffer, "UTF-8");
-			System.out.println("Request: "+data);
+			data = new String(buffer, "UTF-8");
+			//System.out.println("Request: "+data);
 
 			int indexStart = data.indexOf("/?") + 2;
 			int indexEnd = data.indexOf("HTTP") - 1;

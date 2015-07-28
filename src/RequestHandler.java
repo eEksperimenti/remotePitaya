@@ -21,7 +21,12 @@ public class RequestHandler implements Runnable {
 			BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream(), "UTF-8"));
 			String request = "";
 			while (true) {
-				request = in.readLine();
+				while (!(request = in.readLine()).equals("")){
+					request+=request;
+				}
+				System.out.println("## NEW REQUEST ##:\n  "+request);
+
+
 				inbox.setRequest(request);
 			}
 		} catch (IOException e) {
