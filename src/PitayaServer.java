@@ -37,6 +37,7 @@ public class PitayaServer implements Runnable {
 					if (isTokenValid() && getParameters(client)) {
 
 						Inbox inbox = Inbox.getInstance();
+						System.out.println("DATA: "+data);
 						inbox.setRequest(data);
 						
 						RequestHandler request = new RequestHandler(client, inbox);
@@ -93,10 +94,12 @@ public class PitayaServer implements Runnable {
 			byte[] buffer = new byte[4096];
 			input.read(buffer);
 			data = new String(buffer, "UTF-8");
-			//System.out.println("Request: "+data);
 
+			System.out.println(data);
 			int indexStart = data.indexOf("/?") + 2;
 			int indexEnd = data.indexOf("HTTP") - 1;
+			System.out.println("start "+indexStart+ " end: "+indexEnd);
+			if (indexStart > indexEnd){
 			String params = data.substring(indexStart, indexEnd);
 
 			token = params.substring(2, params.indexOf("&"));
@@ -106,13 +109,17 @@ public class PitayaServer implements Runnable {
 			params = params.substring(params.indexOf("&") + 1);
 
 			pitayaNum = Integer.parseInt(params.substring(2));
+			}
 			
-			if (pitayaNum > Main.lookupTable.length)
+			if (pitayaNum > Main.lookupTable.length){
+				System.out.println("AHAAA");
 				return false;
+			}
 
 		} catch (IOException e) {
 			System.out.println("Can't open input stream from connection");
 		} catch (StringIndexOutOfBoundsException e) {
+			e.printStackTrace();
 			return false;
 		}
 		return true;

@@ -64,44 +64,65 @@ public class ResponseHandler implements Runnable {
 			 footer  = request.substring(request.indexOf("User-Agent:") - "User-Agent:".length());
 
 			System.out.println("First request sent");
-			System.out.println("GET /zarnica/ HTTP/1.1\r\n" +
+			System.out.println("GET /scope+gen_translation/ HTTP/1.1\r\n" +
 					"Host: "+this.Ip+"\r\n" +footer+"\r\n");
-			this.pitayaOut.write("GET /zarnica/ HTTP/1.1\r\n" +
-								"Host: "+this.Ip+"\r\n" +footer);
-			this.pitayaOut.flush();
-			//this.pitaya.close();
 			
+			
+			this.pitayaOut.write("GET /scope+gen_translation/ HTTP/1.1\r\n" +
+								"Host: "+this.Ip+"\r\n" +footer+"\r\n");
+			this.pitayaOut.flush();
+			
+			byte buf[] = new byte[1024];
+			int bytesRead=0;
+			while (( bytesRead = pitayaIn.read(buf)) != -1) {
+		         this.clientOut.write(buf, 0, bytesRead);
+		    }
+			clientOut.write(response.getBytes());
+			clientOut.flush();
+			pitayaIn.close();
 
 			while (true) {
-				//openIOStrems();
 				if (inbox.isNewRequest()){
+					System.out.println("NEW REQUEST");
+					this.pitaya = new Socket(Ip, 80);
+					this.pitayaIn = this.pitaya.getInputStream();
+
 					request = inbox.getRequest();
+					System.out.println("new Request (responseHandler):\n"+request);
 					String topheader = request.substring(0, request.indexOf("Host:"));
 					String newRequest = topheader+"\r\nHost: "+this.Ip+"\r\n"+footer+"\rn\n";
 					System.out.println(newRequest);
 					pitayaOut.write(newRequest);
 					pitayaOut.flush();
 					
+					
+					bytesRead=0;
+					byte buf1[] = new byte[1024];
+
+					while (( bytesRead = pitayaIn.read(buf1)) != -1) {
+				         this.clientOut.write(buf1, 0, bytesRead);
+				    }
+				/*	tmp="";
+					while ((tmp = this.pitayaIn.readLine()) != null){
+						
+						if (response.startsWith("Connection:"))
+							response+="Connection: keep-alive";
+						response+=tmp;
+					}*/
+					clientOut.write((response+"\r\n\r\n").getBytes());
+					clientOut.flush();
+					pitayaIn.close();
+					
 				}
-				/*while (!(response = this.pitayaIn.readLine()).equals("")){
-					clientOut.write(response);
-					clientOut.flush();
-					if (response.equals("Content-Length:"))
-					this.clientOut.write(response);
-					clientOut.flush();
-					System.out.println(response);
-				}*/
-				System.out.println("--------- send to client -------");
 				
-				byte buf[] = new byte[1024];
+			/*	byte buf[] = new byte[1024];
 				int bytesRead=0;
 				while (( bytesRead = pitayaIn.read(buf)) != -1) {
 			         this.clientOut.write(buf, 0, bytesRead);
 			    }
-				
-			
-				
-
+				this.pitayaIn.close();
+				this.clientOut.flush();
+*/
 			}
 		} catch (SocketException ex) {
 			ex.printStackTrace();
