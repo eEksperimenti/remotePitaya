@@ -1,21 +1,19 @@
-
+package oldImplementation;
+import java.awt.image.LookupTable;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Hashtable;
+import java.io.EOFException;
 
 public class PitayaServer implements Runnable {
 	private ServerSocket server;
 	private int port;
 	private boolean running;
-	private Hashtable<String, Socket> clients;
+
 	private String token = "";
 	private int pitayaNum = -1;
 	private int user = -1;
-	private String fileName="";
 	private String data="";
-	private final int BUFFER_SIZE= 1024;
-	
 
 	public PitayaServer(int port) {
 		this.port = port;
@@ -26,7 +24,6 @@ public class PitayaServer implements Runnable {
 	public void run() {
 
 		openServerSocket();
-		byte[] buffer= new byte[BUFFER_SIZE];
 
 		while (this.running) {
 			try {
@@ -35,44 +32,19 @@ public class PitayaServer implements Runnable {
 					System.out.println("Client connected!\n IP:"
 							+ client.getInetAddress() + "\n Port: "
 							+ client.getPort());
-					
-				InputStream input = client.getInputStream();
-				OutputStream output = client.getOutputStream();
-				String header="";
-				
-				input.read(buffer);
-				data = new String(buffer, "UTF-8");
-				
-					if (data.startsWith("GET") && getParameters(data)){
-						
-						File f = new File("apps/fileName");
-						if (f.exists()){
 
-							header ="HTTP/1.1 200 OK\r\n"
-									+"Content-type: text/html; charset=UTF-8\r\n";
-							long fileSize = f.length();
-							
-								header+="Content-size: "+fileSize+"\r\n";
-							
-							FileInputStream fis = new FileInputStream(f);
-							int ch = fis.read(buffer, 0, BUFFER_SIZE);
-							while (ch != -1) 
-							{
-								output.write(buffer, 0, ch);
-								ch = fis.read(buffer, 0, BUFFER_SIZE);
-							}
-							output.flush();
-						}else{
-							header = "HTTP/1.1 404 Not found\r\n";
-						}
+				
+					if (isTokenValid() && getParameters(client)) {
+
+						Inbox inbox = Inbox.getInstance();
+						System.out.println("DATA: "+data);
+						inbox.setRequest(data);
 						
-						
-						
-					}else if (data.startsWith("updateData")){
-						
-					}else{
-						input.close();
-						client.close();
+						RequestHandler request = new RequestHandler(client, inbox);
+						new Thread(request).start();
+						ResponseHandler response = new ResponseHandler(client,Main.lookupTable[pitayaNum-1],inbox);
+						new Thread(response).start();
+
 					}
 
 				}
@@ -115,24 +87,36 @@ public class PitayaServer implements Runnable {
 			}
 		}
 	}
-	public boolean getParameters(String data) {
-		try {
-			System.out.println(data);
-			String params[]= data.split("&");
-			fileName= data.split(" ")[1].substring(0,data.indexOf("/"));
-			
-			if (params.length>1){
-				this.pitayaNum=Integer.parseInt(params[0].split("=")[1]);
-				this.token=params[1].split("=")[1];
-			}else
-				this.token=params[0].split("=")[1];
-			
-			System.out.println("fileName: "+fileName+" pitayaNum: "+pitayaNum+" token: "+pitayaNum);
 
+	public boolean getParameters(Socket client) {
+		try {
+			InputStream input = client.getInputStream();
+			byte[] buffer = new byte[4096];
+			input.read(buffer);
+			data = new String(buffer, "UTF-8");
+
+			System.out.println(data);
+			int indexStart = data.indexOf("/?") + 2;
+			int indexEnd = data.indexOf("HTTP") - 1;
+			System.out.println("start "+indexStart+ " end: "+indexEnd);
+			if (indexStart > 10){
+			String params = data.substring(indexStart, indexEnd);
+
+			token = params.substring(2, params.indexOf("&"));
+			params = params.substring(params.indexOf("&") + 1);
+
+			user = Integer.parseInt(params.substring(2, params.indexOf("&")));
+			params = params.substring(params.indexOf("&") + 1);
+
+			pitayaNum = Integer.parseInt(params.substring(2));
+			}
+			
 			if (pitayaNum > Main.lookupTable.length){
 				return false;
 			}
-			
+
+		} catch (IOException e) {
+			System.out.println("Can't open input stream from connection");
 		} catch (StringIndexOutOfBoundsException e) {
 			e.printStackTrace();
 			return false;
@@ -141,6 +125,7 @@ public class PitayaServer implements Runnable {
 	}
 
 	public boolean isTokenValid() {
+
 		// To do: Look in booked database for token
 		return true;
 	}

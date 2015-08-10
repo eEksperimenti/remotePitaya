@@ -1,3 +1,4 @@
+package oldImplementation;
 
 public class Inbox {
 	private static Inbox instance = null;
