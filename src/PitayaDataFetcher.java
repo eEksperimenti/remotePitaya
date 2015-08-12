@@ -5,6 +5,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 
+import org.json.simple.JSONObject;
 
 public class PitayaDataFetcher implements Runnable{
 	private String ip;
@@ -13,18 +14,43 @@ public class PitayaDataFetcher implements Runnable{
 	}
 	public void run() {
 		try {
-			URL appUrl = new URL("http://"+this.ip+":80/soncna_celica");
-			HttpURLConnection tmpConn = (HttpURLConnection) appUrl.openConnection();
-			tmpConn.setRequestMethod("GET");
-			tmpConn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-			tmpConn.setRequestProperty("Referer:","http://192.168.94.134/apps/");
-			tmpConn.setRequestProperty("Connection", "keep-alive");
-			tmpConn.connect();
-		
+			JSONObject params = new JSONObject();
+			params.put("en_avg_at_dec", 0);
+			
+			
+			URL bazarURL = new URL("http://"+this.ip+":80/s/bazaar?start=soncna_celica");
+			HttpURLConnection bazarConn = (HttpURLConnection) bazarURL.openConnection();
+			bazarConn.setRequestMethod("GET");
+			bazarConn.setRequestProperty("Accept", "application/json;charset=utf-8");
+			bazarConn.setRequestProperty("Referer:","http://192.168.94.134/apps/");
+			bazarConn.setRequestProperty("Connection", "keep-alive");
+			bazarConn.connect();
+			URL url = new URL("http://"+this.ip+":80/data");
+			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+			conn.setRequestMethod("GET");
+			conn.setRequestProperty("Content-type", "application/json;charset=utf-8");
+			conn.setRequestProperty("X-Requested-With","XMLHttpRequest");
+			conn.setRequestProperty("Connection", "keep-alive");
+			conn.connect();
+			
+			BufferedReader br=null;
+			
+			if (bazarConn.getResponseCode() == 200 || bazarConn.getResponseCode() == 201){
+				br = new BufferedReader(new InputStreamReader(bazarConn.getInputStream()));
+				String jsonData="",tmp="";
+				while ((tmp = br.readLine()) != null){
+					jsonData +=tmp;
+				}
+				System.out.println("IP: "+ip+" DATA:\n"+jsonData);
+				//add to circural buffer
+						
+				jsonData="";
+				
+			}
 			while (true){
 				Thread.sleep(50);
 	
-				URL url = new URL("http://"+this.ip+":80/data?_=1437573753404");
+				URL url = new URL("http://"+this.ip+":80/data?_=1437573753403");
 				HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 				conn.setRequestMethod("GET");
 				conn.setRequestProperty("Content-type", "application/json;charset=utf-8");
@@ -33,7 +59,7 @@ public class PitayaDataFetcher implements Runnable{
 				conn.connect();
 				System.out.println("Data fetching from Pitaya: "+ip);
 		
-				BufferedReader br=null;
+			//	BufferedReader br=null;
 				
 				if (conn.getResponseCode() == 200 || conn.getResponseCode() == 201){
 					br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
