@@ -1,23 +1,31 @@
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Hashtable;
 
 public class PitayaServer implements Runnable {
 	private ServerSocket server;
+	private Socket client;
 	private int port;
 	private boolean running;
-	private Hashtable<String, Socket> clients;
-	private String token = "";
 	private int pitayaNum = -1;
-	private int user = -1;
-	private String fileName, method, contentType = "";
-	private String data = "";
+	private String token, experiment, fileName, method, contentType, data = "";
 	private final int BUFFER_SIZE = 1024;
+	private boolean[] runningPitaya = new boolean[Main.lookupTable.length];
+
+	static Hashtable<String, ArrayList<Socket>> subscribers = new Hashtable<String,ArrayList<Socket>>();
 
 	public PitayaServer(int port) {
 		this.port = port;
 		this.running = false;
+		for (int i = 0; i < runningPitaya.length; i++) {
+			runningPitaya[i]= false;
+		}
 	}
 
 	@Override
@@ -28,7 +36,7 @@ public class PitayaServer implements Runnable {
 		byte[] buffer = new byte[BUFFER_SIZE]; 
 		while (this.running) {
 			try {
-				Socket client = this.server.accept(); // accept incoming
+				client = this.server.accept(); // accept incoming
 														// connections
 				if (client.isConnected()) {
 					System.out.println("Client connected!\n IP:"
@@ -47,6 +55,20 @@ public class PitayaServer implements Runnable {
 					// If we have a http GET request (user loading web page)
 					if (data.startsWith("GET") && getParameters(data)) { 
 						
+						//Check if we are already fetching from the desired pitaya
+						if (!runningPitaya[pitayaNum-1]){
+							Thread t = new Thread(new PitayaDataFetcher(Main.lookupTable[pitayaNum-1],this.experiment));
+							t.start();
+							runningPitaya[pitayaNum-1] = true;
+						}
+						System.out.println("FILE: "+fileName);
+
+						if (fileName.equals("data")){
+							System.out.println("!DATA : "+fileName);
+							PitayaDataFetcher.pitayaBuffer.readData();
+							output.write((PitayaDataFetcher.pitayaBuffer.readData()).getBytes());
+							output.flush();
+						}else{
 						// Check if we have the specified file
 						File f = new File("apps/" + fileName);
 						if (f.exists()) { 
@@ -73,11 +95,18 @@ public class PitayaServer implements Runnable {
 						} else {
 							header = "HTTP/1.1 404 Not found\r\n";
 						}
-						
+					}
 						// if we receive a string updateData, we have a socket conn.
 						// (web page already loaded)	
-					} else if (data.startsWith("updateData")) { 
-							//to do: socket conn.
+					} else if (data.startsWith("downloadData")) { 
+							String exp = data.split("|")[1];
+							System.out.println("requesting data for exp.: "+exp);
+							if (!subscribers.containsKey(exp))
+									subscribers.put(exp,new ArrayList());
+						
+							ArrayList<Socket> tmp = subscribers.get(exp);
+							tmp.add(client);
+							subscribers.put(exp,tmp);	
 					} else {
 						input.close();
 						client.close();
@@ -127,21 +156,19 @@ public class PitayaServer implements Runnable {
 
 	public boolean getParameters(String data) {
 		try {
-			String[] params = null;
-			String[] lines = data.split("\r\n"); // Split entire package into
-													// lines
-			String[] status = data.split(" "); // Split the status line in three
-												// parts (0-method, 1-URL,
-												// 2-protocol version)
+			// Split entire package into lines
+			String[] params =null;
+			String[] lines = data.split("\r\n"); 
+			
+			// Split the status line in three parts (0-method, 1-URL, 2-protocol version)
+			String[] status = data.split(" "); 
 			method = status[0]; // method GET or POST
-
-			if (status[1].indexOf("&") > 0) { // Check if we have any GET
-												// parameters
-				String[] resource = status[1].split("\\?"); // Separate the URL
-															// from the
-															// parameters
-				fileName = resource[0]; // if we have any parameter
-										// (resources[1]), take them apart
+			
+			// Check if we have any GET parameters
+			if (status[1].indexOf("&") > 0) { 
+				// if we have any parameters (resources[1]), take them apart
+				String[] resource = status[1].split("\\?"); 
+				fileName = resource[0]; 
 				if (resource.length > 1) {
 					params = resource[1].split("&"); // Divide each parameter
 				}
@@ -149,9 +176,12 @@ public class PitayaServer implements Runnable {
 				fileName = status[1];
 			}
 			if (params != null) { //
+				System.out.println("### LEN: "+params.length);
 				this.pitayaNum = Integer.parseInt(params[0].split("=")[1]);
-				this.token = params[1].split("=")[1];
+				this.experiment = (params.length > 1) ? params[1].split("=")[1] : "";
+				this.token = (params.length > 2) ? params[2].split("=")[1] : "";
 			}
+			System.out.println("P: "+this.pitayaNum+" ex: "+this.experiment+" t: "+this.token);
 
 			contentType = lines[3].split(":")[1]; // Take the content type from
 													// the http request

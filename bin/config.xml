@@ -8,11 +8,11 @@
 		dbname="phpscheduler"/>
 <pitaya num="1"
 		ip="192.168.94.134"
-		experiment="zarnica"
+		experiment="soncna_celica"
 		/>
 <pitaya num="2"
 		ip="192.168.1.101"
-		experiment="celica"
+		experiment="zarnica"
 		/>
 <pitaya num="3"
 		ip="192.168.1.102"

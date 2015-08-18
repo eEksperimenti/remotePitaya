@@ -39,7 +39,6 @@ public class Main {
 					service = new PitayaServer(port);
 					new Thread(service).start();
 					serviceRunning = true;
-					startFetcingDataFromPitaya();
 				}
 				break;
 
@@ -98,7 +97,6 @@ public class Main {
 				lookupTable = new String[pitayas.size()];
 				for (Element pitaya : pitayas){
 					lookupTable[Integer.parseInt(pitaya.attr("num"))-1] = pitaya.attr("ip");
-					System.out.println("Pitaya "+"num "+Integer.parseInt(pitaya.attr("num"))+": "+pitaya.attr("ip")+"/"+pitaya.attr("experiment"));
 				}
 				
 			return true;
@@ -111,11 +109,7 @@ public class Main {
 			return false;
 		}
 		
-	}
-	public static void startFetcingDataFromPitaya(){
-		for (String ip : lookupTable) {
-				Thread t = new Thread(new PitayaDataFetcher(ip));
-				t.start();
-		}
+	
+	
 	}
 }

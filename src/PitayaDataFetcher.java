@@ -1,18 +1,18 @@
 import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 
-import org.json.simple.JSONObject;
-
 public class PitayaDataFetcher implements Runnable{
 	private String ip;
-	public PitayaDataFetcher(String ip) {
+	private String experiment = "";
+	static PitayaBuffer pitayaBuffer;
+ 	public PitayaDataFetcher(String ip,String experiment) {
 		this.ip=ip;
+		this.experiment=experiment;
+		this.pitayaBuffer=new PitayaBuffer();
 	}
 	public void run() {
 		try {
@@ -50,7 +50,7 @@ public class PitayaDataFetcher implements Runnable{
 				conn.setRequestProperty("X-Requested-With","XMLHttpRequest");
 				conn.setRequestProperty("Connection", "keep-alive");
 				conn.connect();
-				System.out.println("Data fetching from Pitaya: "+ip);
+			//	System.out.println("Data fetching from Pitaya: "+ip);
 						
 				if (conn.getResponseCode() == 200 || conn.getResponseCode() == 201){
 					br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
@@ -58,8 +58,8 @@ public class PitayaDataFetcher implements Runnable{
 					while ((tmp = br.readLine()) != null){
 						jsonData +=tmp;
 					}
-					System.out.println("IP: "+ip+" DATA:\n"+jsonData);
-					//add to circural buffer
+				//	System.out.println("IP: "+ip+" DATA:\n"+jsonData);
+					pitayaBuffer.writeData(jsonData);
 							
 					jsonData="";
 					
