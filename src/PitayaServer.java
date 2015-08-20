@@ -18,8 +18,6 @@ public class PitayaServer implements Runnable {
 	private final int BUFFER_SIZE = 1024;
 	private boolean[] runningPitaya = new boolean[Main.lookupTable.length];
 
-	static Hashtable<String, ArrayList<Socket>> subscribers = new Hashtable<String,ArrayList<Socket>>();
-
 	public PitayaServer(int port) {
 		this.port = port;
 		this.running = false;
@@ -36,8 +34,8 @@ public class PitayaServer implements Runnable {
 		byte[] buffer = new byte[BUFFER_SIZE]; 
 		while (this.running) {
 			try {
-				client = this.server.accept(); // accept incoming
-														// connections
+				// accept incoming connections
+				client = this.server.accept(); 
 				if (client.isConnected()) {
 					System.out.println("Client connected!\n IP:"
 							+ client.getInetAddress() + "\n Port: "
@@ -52,7 +50,7 @@ public class PitayaServer implements Runnable {
 					input.read(buffer); 
 					data = new String(buffer, "UTF-8");
 					
-					// If we have a http GET request (user loading web page)
+					// If we have a http GET request 
 					if (data.startsWith("GET") && getParameters(data)) { 
 						
 						//Check if we are already fetching from the desired pitaya
@@ -61,8 +59,8 @@ public class PitayaServer implements Runnable {
 							t.start();
 							runningPitaya[pitayaNum-1] = true;
 						}
-						System.out.println("FILE: "+fileName);
-
+						
+						//If requesting data, read from pitayaBuffer and send to client
 						if (fileName.equals("data")){
 							System.out.println("!DATA : "+fileName);
 							PitayaDataFetcher.pitayaBuffer.readData();
@@ -72,47 +70,35 @@ public class PitayaServer implements Runnable {
 						// Check if we have the specified file
 						File f = new File("apps/" + fileName);
 						if (f.exists()) { 
-
-							header = "HTTP/1.1 200 OK\r\n"
-									+ "Content-type:contentType\r\n";
-
 							long fileSize = f.length();
-							
-							// Http response status line and header
-							header += "Content-size: " + fileSize + "\r\n";
-							header += "Connection: Close\r\n\r\n"; 
 							
 							// reading from file (http body) and sending(with http header)
 							FileInputStream fis = new FileInputStream(f); 
-							output.write(header.getBytes());
 							
+							// Http response status line and header
+							header = "HTTP/1.1 200 OK\r\n"
+									+ "Content-type:contentType\r\n"
+									+ "Content-size: " + fileSize + "\r\n"
+									+ "Connection: Close\r\n\r\n"; 
+							output.write(header.getBytes());
+
 							int ch = fis.read(buffer, 0, BUFFER_SIZE);
 							while (ch != -1) {
 								output.write(buffer, 0, ch);
 								ch = fis.read(buffer, 0, BUFFER_SIZE);
 							}
 							output.flush();
+							
 						} else {
 							header = "HTTP/1.1 404 Not found\r\n";
 						}
 					}
-						// if we receive a string updateData, we have a socket conn.
-						// (web page already loaded)	
-					} else if (data.startsWith("downloadData")) { 
-							String exp = data.split("|")[1];
-							System.out.println("requesting data for exp.: "+exp);
-							if (!subscribers.containsKey(exp))
-									subscribers.put(exp,new ArrayList());
-						
-							ArrayList<Socket> tmp = subscribers.get(exp);
-							tmp.add(client);
-							subscribers.put(exp,tmp);	
-					} else {
-						input.close();
-						client.close();
-					}
-					output.close();
+				}else {
+					input.close();
 					client.close();
+				}
+				output.close();
+				client.close();
 				}
 
 			} catch (IOException e) {
@@ -163,7 +149,7 @@ public class PitayaServer implements Runnable {
 			// Split the status line in three parts (0-method, 1-URL, 2-protocol version)
 			String[] status = data.split(" "); 
 			method = status[0]; // method GET or POST
-			
+			System.out.println("STATUS: "+status[1]);
 			// Check if we have any GET parameters
 			if (status[1].indexOf("&") > 0) { 
 				// if we have any parameters (resources[1]), take them apart
