@@ -16,7 +16,7 @@ public class PitayaDataFetcher implements Runnable{
 	}
 	public void run() {
 		try {
-			URL bazarURL = new URL("http://"+this.ip+":80/bazaar?start=soncna_celica");
+			URL bazarURL = new URL("http://"+this.ip+":80/bazaar?start=scope+gen_translation");
 			HttpURLConnection bazarConn = (HttpURLConnection) bazarURL.openConnection();
 			bazarConn.setRequestMethod("GET");
 			bazarConn.setRequestProperty("Accept", "application/json;charset=utf-8");

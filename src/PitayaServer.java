@@ -40,7 +40,6 @@ public class PitayaServer implements Runnable {
 					System.out.println("Client connected!\n IP:"
 							+ client.getInetAddress() + "\n Port: "
 							+ client.getPort());
-
 					//open input/output streams
 					InputStream input = client.getInputStream(); 
 					OutputStream output = client.getOutputStream();
@@ -59,12 +58,22 @@ public class PitayaServer implements Runnable {
 							t.start();
 							runningPitaya[pitayaNum-1] = true;
 						}
-						
+
 						//If requesting data, read from pitayaBuffer and send to client
-						if (fileName.equals("data")){
-							System.out.println("!DATA : "+fileName);
-							PitayaDataFetcher.pitayaBuffer.readData();
-							output.write((PitayaDataFetcher.pitayaBuffer.readData()).getBytes());
+						if (fileName.startsWith("/data")){
+							String responseData = PitayaDataFetcher.pitayaBuffer.readData();
+
+							header = "HTTP/1.1 200 OK\r\n"
+									+ "Content-type: application/json\r\n"
+									+ "Content-size: " + responseData.length() + "\r\n"
+									+ "Connection: Close\r\n\r\n"
+									+"Access-Control-Allow-Origin: *"
+									+"Access-Control-Allow-Credentials: true"
+									+"Access-Control-Allow-Methods: GET, POST, OPTIONS"
+									+"Access-Control-Allow-Headers: DNT,X-Mx-ReqToken,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type";
+							System.out.println("SENDING DATA.....");
+							output.write(header.getBytes());
+							output.write(responseData.getBytes());
 							output.flush();
 						}else{
 						// Check if we have the specified file
@@ -77,16 +86,19 @@ public class PitayaServer implements Runnable {
 							
 							// Http response status line and header
 							header = "HTTP/1.1 200 OK\r\n"
-									+ "Content-type:contentType\r\n"
+									+ "Content-type: "+contentType+"\r\n"
 									+ "Content-size: " + fileSize + "\r\n"
 									+ "Connection: Close\r\n\r\n"; 
 							output.write(header.getBytes());
+							System.out.println("HEADER: "+header);
+
 
 							int ch = fis.read(buffer, 0, BUFFER_SIZE);
 							while (ch != -1) {
 								output.write(buffer, 0, ch);
 								ch = fis.read(buffer, 0, BUFFER_SIZE);
 							}
+							System.out.println(output);
 							output.flush();
 							
 						} else {
@@ -169,11 +181,16 @@ public class PitayaServer implements Runnable {
 			}
 			System.out.println("P: "+this.pitayaNum+" ex: "+this.experiment+" t: "+this.token);
 
-			contentType = lines[3].split(":")[1]; // Take the content type from
+			contentType = (lines[3].split(":")[1]).trim(); // Take the content type from
 													// the http request
-			if (contentType.startsWith("text/html"))
-				contentType = "text/html"; // hack: for html pages use simpler
-											// content type string
+			// hack: for html pages use simpler
+			// content type string
+			if (contentType.startsWith("text/html")){
+				contentType = "text/html"; 
+				
+			}else if (contentType.startsWith("*/*"))
+				contentType = "application/x-javascript";
+		
 
 			if (pitayaNum > Main.lookupTable.length) { // Check if pitayaNum is
 														// a valid number
