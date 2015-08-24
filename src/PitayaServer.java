@@ -1,12 +1,15 @@
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.net.HttpURLConnection;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Hashtable;
+import java.net.URL;
 
 public class PitayaServer implements Runnable {
 	private ServerSocket server;
@@ -48,6 +51,7 @@ public class PitayaServer implements Runnable {
 					// read the http request
 					input.read(buffer); 
 					data = new String(buffer, "UTF-8");
+					System.out.println("DATA: "+data);
 					
 					// If we have a http GET request 
 					if (data.startsWith("GET") && getParameters(data)) { 
@@ -66,11 +70,8 @@ public class PitayaServer implements Runnable {
 							header = "HTTP/1.1 200 OK\r\n"
 									+ "Content-type: application/json\r\n"
 									+ "Content-size: " + responseData.length() + "\r\n"
-									+ "Connection: Close\r\n\r\n"
-									+"Access-Control-Allow-Origin: *"
-									+"Access-Control-Allow-Credentials: true"
-									+"Access-Control-Allow-Methods: GET, POST, OPTIONS"
-									+"Access-Control-Allow-Headers: DNT,X-Mx-ReqToken,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type";
+									+ "Connection: Close\r\n\r\n";
+									
 							System.out.println("SENDING DATA.....");
 							output.write(header.getBytes());
 							output.write(responseData.getBytes());
@@ -105,6 +106,38 @@ public class PitayaServer implements Runnable {
 							header = "HTTP/1.1 404 Not found\r\n";
 						}
 					}
+				}else if (data.startsWith("POST")){
+					System.out.println("POST request");
+					new Thread(){
+						public void run(){
+						try{
+							URL url = new URL("212.235.190.181:5950");
+							HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+							conn.setDoOutput(true);
+							OutputStreamWriter writer = new OutputStreamWriter(conn.getOutputStream());
+							writer.write(data);
+							writer.flush();
+							
+							BufferedReader br=null;
+							
+							if (conn.getResponseCode() == 200 || conn.getResponseCode() == 201){
+								br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+								String jsonData="",tmp="";
+								while ((tmp = br.readLine()) != null){
+									jsonData +=tmp;
+								}
+								System.out.println("POST json:\n"+jsonData);						
+								jsonData="";
+								
+							}
+							writer.close();
+							br.close();
+							conn.disconnect();
+							}catch(IOException e){
+								System.out.println(e.toString());
+							}
+						}
+					};
 				}else {
 					input.close();
 					client.close();
