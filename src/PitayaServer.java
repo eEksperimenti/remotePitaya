@@ -1,15 +1,13 @@
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.net.HttpURLConnection;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.URL;
+
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 
 public class PitayaServer implements Runnable {
 	private ServerSocket server;
@@ -17,9 +15,12 @@ public class PitayaServer implements Runnable {
 	private int port;
 	private boolean running;
 	private int pitayaNum = -1;
+	private OutputStream output;
+	private InputStream input;
 	private String token, experiment, fileName, method, contentType, data = "";
-	private final int BUFFER_SIZE = 1024;
+	private final int BUFFER_SIZE = 1700;
 	private boolean[] runningPitaya = new boolean[Main.lookupTable.length];
+	private PitayaDataFetcher[] fetchers = new PitayaDataFetcher[Main.lookupTable.length];
 
 	public PitayaServer(int port) {
 		this.port = port;
@@ -44,21 +45,22 @@ public class PitayaServer implements Runnable {
 							+ client.getInetAddress() + "\n Port: "
 							+ client.getPort());
 					//open input/output streams
-					InputStream input = client.getInputStream(); 
-					OutputStream output = client.getOutputStream();
+					 input = client.getInputStream(); 
+					 output = client.getOutputStream();
 					String header = "";
 					
 					// read the http request
 					input.read(buffer); 
 					data = new String(buffer, "UTF-8");
-					System.out.println("DATA: "+data);
 					
 					// If we have a http GET request 
 					if (data.startsWith("GET") && getParameters(data)) { 
 						
 						//Check if we are already fetching from the desired pitaya
 						if (!runningPitaya[pitayaNum-1]){
-							Thread t = new Thread(new PitayaDataFetcher(Main.lookupTable[pitayaNum-1],this.experiment));
+							PitayaDataFetcher fetcher = new PitayaDataFetcher(Main.lookupTable[pitayaNum-1],this.experiment);
+							fetchers[pitayaNum-1] = fetcher;
+							Thread t = new Thread(fetcher);
 							t.start();
 							runningPitaya[pitayaNum-1] = true;
 						}
@@ -91,7 +93,6 @@ public class PitayaServer implements Runnable {
 									+ "Content-size: " + fileSize + "\r\n"
 									+ "Connection: Close\r\n\r\n"; 
 							output.write(header.getBytes());
-							System.out.println("HEADER: "+header);
 
 
 							int ch = fis.read(buffer, 0, BUFFER_SIZE);
@@ -99,7 +100,6 @@ public class PitayaServer implements Runnable {
 								output.write(buffer, 0, ch);
 								ch = fis.read(buffer, 0, BUFFER_SIZE);
 							}
-							System.out.println(output);
 							output.flush();
 							
 						} else {
@@ -107,37 +107,60 @@ public class PitayaServer implements Runnable {
 						}
 					}
 				}else if (data.startsWith("POST")){
-					System.out.println("POST request");
-					new Thread(){
-						public void run(){
-						try{
-							URL url = new URL("212.235.190.181:5950");
-							HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-							conn.setDoOutput(true);
-							OutputStreamWriter writer = new OutputStreamWriter(conn.getOutputStream());
-							writer.write(data);
-							writer.flush();
+				
+							try{
+							System.out.println("######### POST request ########");
+							String pitayaParams = data.split("\r\n\r\n")[1];
+							//System.out.println("DATA:\n"+data);
 							
-							BufferedReader br=null;
 							
-							if (conn.getResponseCode() == 200 || conn.getResponseCode() == 201){
-								br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-								String jsonData="",tmp="";
-								while ((tmp = br.readLine()) != null){
-									jsonData +=tmp;
-								}
-								System.out.println("POST json:\n"+jsonData);						
-								jsonData="";
+							/*String firstLine = data.split("\r\n")[0];
+							String getParams = data.split("\\?")[1];
+							String firstParam = getParams.split("&")[0];
+							int num=-1;
+							if (firstParam.startsWith("p")) 
+								 num  = Integer.parseInt(firstParam.split("=")[1]);*/
+							PitayaDataFetcher fetcher = fetchers[0];
+							//OutputStream newOutput = client.getOutputStream();
+							fetcher.setWait(true);
+							
+							String newData = fetcher.sendParameters(pitayaParams);
+							String httpBody = newData.substring(0,newData.indexOf("{"));
+							String date = httpBody.substring(httpBody.indexOf("Date"),httpBody.indexOf("Date")+31);
+							
+							String jsonStart = newData.substring(newData.indexOf("{"),newData.indexOf("datasets")+12);
+							String newParams = newData.substring(newData.indexOf("params"));
+							System.out.println(date+"|\n"+jsonStart+newParams);
+							
+							String response ="HTTP/1.1 200 OK\r\n"
+										   +"Server: nginx/1.5.3\r\n"
+										   +date+"\r\n"
+										   +"Content-Type: application/json\r\n"
+										   +"Content-Length: "+(jsonStart+newParams).length()+"\r\n"
+										   +"Connection: close\r\n"
+										   +"Access-Control-Allow-Origin: *\r\n"
+										   +"Access-Control-Allow-Credentials: true\r\n"
+										   +"Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+										   +"Access-Control-Allow-Headers: DNT,X-Mx-ReqToken,Keep-Alive," +
+										   "User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type\r\n\r\n" 
+										   +jsonStart+newParams;	
+						
+							
+						//	System.out.println("Response: \n"+newData);
+						//	System.out.println("Response back:"+newData+"|");
+						
 								
-							}
-							writer.close();
-							br.close();
-							conn.disconnect();
-							}catch(IOException e){
-								System.out.println(e.toString());
-							}
-						}
-					};
+							//System.out.println("### RESPOSNE:\n"+response);
+							
+							output.write(response.getBytes());
+							output.flush();
+							output.close();
+							fetcher.setWait(false);
+
+							}catch(Exception e){
+								e.printStackTrace();
+							}	
+						
 				}else {
 					input.close();
 					client.close();
@@ -194,7 +217,6 @@ public class PitayaServer implements Runnable {
 			// Split the status line in three parts (0-method, 1-URL, 2-protocol version)
 			String[] status = data.split(" "); 
 			method = status[0]; // method GET or POST
-			System.out.println("STATUS: "+status[1]);
 			// Check if we have any GET parameters
 			if (status[1].indexOf("&") > 0) { 
 				// if we have any parameters (resources[1]), take them apart
@@ -207,12 +229,10 @@ public class PitayaServer implements Runnable {
 				fileName = status[1];
 			}
 			if (params != null) { //
-				System.out.println("### LEN: "+params.length);
 				this.pitayaNum = Integer.parseInt(params[0].split("=")[1]);
 				this.experiment = (params.length > 1) ? params[1].split("=")[1] : "";
 				this.token = (params.length > 2) ? params[2].split("=")[1] : "";
 			}
-			System.out.println("P: "+this.pitayaNum+" ex: "+this.experiment+" t: "+this.token);
 
 			contentType = (lines[3].split(":")[1]).trim(); // Take the content type from
 													// the http request
