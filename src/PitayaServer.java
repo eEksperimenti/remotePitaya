@@ -9,6 +9,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 import com.mysql.jdbc.Connection;
 
@@ -161,17 +162,17 @@ public class PitayaServer implements Runnable {
 							System.out.println("CLEAN PARAMS: \n"+appParams+"|\n-------------");
 	
 							/*Get the pitaya number*/
-							/*String firstLine = data.split("\r\n")[0];
+							String firstLine = data.split("\r\n")[0];
 							String getParams = data.split("\\?")[1];
 							String firstParam = getParams.split("&")[0];
 							int num=-1;
 							if (firstParam.startsWith("p")) 
-								 num  = Integer.parseInt(firstParam.split("=")[1]);*/
+								 num  = Integer.parseInt(firstParam.split("=")[1]);
 							
 							/*Get the fetcher object and set the wait flag to true -
 							 * no data fetching during parameter posting
 							*/
-							PitayaDataFetcher fetcher = fetchers[0];
+							PitayaDataFetcher fetcher = fetchers[num-1];
 							fetcher.setWait(true);
 							/* Send the parasm to pitaya and get the response (response relevant only for the date field ) */
 							String pitayaData = fetcher.sendParameters(appBody,appParams);
@@ -300,14 +301,19 @@ public class PitayaServer implements Runnable {
 	}
 	
 
-/*	public boolean isTokenValid() {
-	/*	try {
+	public boolean isTokenValid() {
+		try {
+			String query =  "SELECT * FROM "
 			Class.forName("com.mysql.jdbc.Driver");
-			Connection conn = DriverManager.getConnection("jdbc:mysql://http://194.249.0.123/bookedscheduler","root","rootko");
+			Connection conn = (Connection) DriverManager.getConnection("jdbc:mysql://194.249.0.123/bookedscheduler","simon","lekADOL93");
+			Statement stm = conn.createStatement();
+			
+			return true;
 		} catch (SQLException | ClassNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+			return false;
 		}
-	}*/
+	}
 
 }
