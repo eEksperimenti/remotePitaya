@@ -1,13 +1,16 @@
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
+import com.mysql.jdbc.Connection;
 
 public class PitayaServer implements Runnable {
 	private ServerSocket server;
@@ -18,7 +21,7 @@ public class PitayaServer implements Runnable {
 	private OutputStream output;
 	private InputStream input;
 	private String token, experiment, fileName, method, contentType, data = "";
-	private final int BUFFER_SIZE = 1700;
+	private final int BUFFER_SIZE = 1;
 	private boolean[] runningPitaya = new boolean[Main.lookupTable.length];
 	private PitayaDataFetcher[] fetchers = new PitayaDataFetcher[Main.lookupTable.length];
 
@@ -49,9 +52,42 @@ public class PitayaServer implements Runnable {
 					 output = client.getOutputStream();
 					String header = "";
 					
-					// read the http request
-					input.read(buffer); 
-					data = new String(buffer, "UTF-8");
+					BufferedReader bf = new BufferedReader(new InputStreamReader(input));
+					String tmp="";
+					StringBuilder sb =new StringBuilder();
+					int length=-1;
+		            while ((tmp = bf.readLine()) != null) {
+		                if (tmp.equals("")) {
+		                	break;
+		                }
+		                if (tmp.startsWith("Content-Length: ")) { 
+		                    int index = tmp.indexOf(':') + 1;
+		                    String len = tmp.substring(index).trim();
+		                    length = Integer.parseInt(len);
+		                }
+		                System.out.println("TMP: "+tmp);
+		                sb.append(tmp + "\r\n");
+		            } 
+		            StringBuilder content=new StringBuilder();
+		            System.out.println("Len: "+length);
+		            if (length > 0) {
+		                int read;
+		                while ((read = bf.read()) != -1) {
+		                	System.out.print("|"+(char) read);
+		                   content.append((char) read);
+		                    if (content.length() == length){
+		                    	System.out.println("Content len: "+content.length()+" = "+length);
+		                        break;
+		                    }
+		                }
+		            }
+		            System.out.println("Content len: "+content.length());
+		            sb.append("\r\n"+content.toString()); // adding the body to request
+					data=sb.toString();
+					    
+				/*	input.read(buffer); 
+					data = new String(buffer, "UTF-8");*/
+					System.out.println(data);
 					
 					// If we have a http GET request 
 					if (data.startsWith("GET") && getParameters(data)) { 
@@ -106,52 +142,58 @@ public class PitayaServer implements Runnable {
 							header = "HTTP/1.1 404 Not found\r\n";
 						}
 					}
-				}else if (data.startsWith("POST")){
-				
-							try{
+				}else if (data.startsWith("POST")){			
+					try{
 							System.out.println("######### POST request ########");
-							String pitayaParams = data.split("\r\n\r\n")[1];
-							//System.out.println("DATA:\n"+data);
+							/*data is our POST request */
+							System.out.println("Len: "+data.length());
 							
+							/*Separate the http body from the content (JSON data)*/
+							String appParams      = data.split("\r\n\r\n")[1];
+							String appBody        = data.split("\r\n\r\n")[0];
 							
+							/*Clean the params - not working */
+							/*Return to the app the same params and add status:ok at the end*/
+							int len = appParams.length();
+							String responseParams = appParams.substring(0,len-1)+ ",\"status\":\"OK\"}";
+							
+							System.out.println("DIRTY: \n"+ appParams+"\n-------------");
+							System.out.println("CLEAN PARAMS: \n"+appParams+"|\n-------------");
+	
+							/*Get the pitaya number*/
 							/*String firstLine = data.split("\r\n")[0];
 							String getParams = data.split("\\?")[1];
 							String firstParam = getParams.split("&")[0];
 							int num=-1;
 							if (firstParam.startsWith("p")) 
 								 num  = Integer.parseInt(firstParam.split("=")[1]);*/
+							
+							/*Get the fetcher object and set the wait flag to true -
+							 * no data fetching during parameter posting
+							*/
 							PitayaDataFetcher fetcher = fetchers[0];
-							//OutputStream newOutput = client.getOutputStream();
 							fetcher.setWait(true);
+							/* Send the parasm to pitaya and get the response (response relevant only for the date field ) */
+							String pitayaData = fetcher.sendParameters(appBody,appParams);
+							String pitayaBody = pitayaData.split("\r\n\r\n")[0];
+							String date       = pitayaBody.substring(pitayaBody.indexOf("Date"),pitayaBody.indexOf("Date")+31);
+					
+							System.out.println("## Response\n"+pitayaData);
 							
-							String newData = fetcher.sendParameters(pitayaParams);
-							String httpBody = newData.substring(0,newData.indexOf("{"));
-							String date = httpBody.substring(httpBody.indexOf("Date"),httpBody.indexOf("Date")+31);
-							
-							String jsonStart = newData.substring(newData.indexOf("{"),newData.indexOf("datasets")+12);
-							String newParams = newData.substring(newData.indexOf("params"));
-							System.out.println(date+"|\n"+jsonStart+newParams);
-							
+							/*Compose the entire http response package and send it to the app. */
 							String response ="HTTP/1.1 200 OK\r\n"
 										   +"Server: nginx/1.5.3\r\n"
 										   +date+"\r\n"
 										   +"Content-Type: application/json\r\n"
-										   +"Content-Length: "+(jsonStart+newParams).length()+"\r\n"
+										   +"Content-Length: "+responseParams.length()+"\r\n"
 										   +"Connection: close\r\n"
 										   +"Access-Control-Allow-Origin: *\r\n"
 										   +"Access-Control-Allow-Credentials: true\r\n"
 										   +"Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
 										   +"Access-Control-Allow-Headers: DNT,X-Mx-ReqToken,Keep-Alive," +
 										   "User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type\r\n\r\n" 
-										   +jsonStart+newParams;	
+										   +responseParams;	
 						
-							
-						//	System.out.println("Response: \n"+newData);
-						//	System.out.println("Response back:"+newData+"|");
-						
-								
-							//System.out.println("### RESPOSNE:\n"+response);
-							
 							output.write(response.getBytes());
 							output.flush();
 							output.close();
@@ -258,9 +300,14 @@ public class PitayaServer implements Runnable {
 	}
 	
 
-	public boolean isTokenValid() {
-		// To do: Look in booked database for token
-		return true;
-	}
+/*	public boolean isTokenValid() {
+	/*	try {
+			Class.forName("com.mysql.jdbc.Driver");
+			Connection conn = DriverManager.getConnection("jdbc:mysql://http://194.249.0.123/bookedscheduler","root","rootko");
+		} catch (SQLException | ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}*/
 
 }

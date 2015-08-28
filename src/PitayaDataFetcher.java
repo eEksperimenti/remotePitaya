@@ -1,6 +1,7 @@
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
@@ -85,89 +86,61 @@ public class PitayaDataFetcher implements Runnable{
 		}	
 			
 	}
-	public  String sendParameters(String pitayaParams){
-		/*try{
+	public  String sendParameters(String body,String pitayaParams){
+		try{ 
+			/*Get the socket and I/O strams*/
+			Socket s = new Socket(this.ip,80);
+			String request = body+"\r\n\r\n"+pitayaParams;
+			System.out.println("TO PIATYA: \n"+request+"\n-------------");
 			
-			wait = true;
-			//conn.disconnect();
-			byte[] data = pitayaParams.getBytes(StandardCharsets.UTF_8);
-			int len = data.length;
-			System.out.println("Fetcher!!");
-			URL url = new URL("http://"+this.ip+":80/data");
-			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-			conn.setDoInput(true);
-			conn.setDoOutput(true);	
-			conn.setRequestMethod("POST");
-			conn.setInstanceFollowRedirects(true);
-			conn.setRequestProperty("Content-length", Integer.toString(len));
-			conn.setRequestProperty("Content-type", "application/x-www-form-urlencoded; charset=UTF-8");
-			conn.setRequestProperty("X-Requested-With","XMLHttpRequest");
-			conn.setRequestProperty("Connection", "keep-alive");
-			System.out.println("Request: "+conn.toString()+"\n");
-			
-			conn.connect();
-
-			//System.out.println("Fetcher2"+conn.getResponseCode());
-
-			DataOutputStream dos = new DataOutputStream(conn.getOutputStream());
-			dos.write(data);
-			dos.flush();
-			System.out.println("Response: "+conn.getResponseMessage());
-			dos.close();
-			
+			/*send the request*/
+			DataOutputStream dos = new DataOutputStream(s.getOutputStream());
 			String jsonData="",tmp="";
-			BufferedReader br=null;
-			if (conn.getResponseCode() == 200 || conn.getResponseCode() == 201){
-				System.out.println("Response OK");
-				br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-				while ((tmp = br.readLine()) != null){
-					jsonData +=tmp;
-				}
-				System.out.println("POST json:\n"+jsonData);	
-			}
-			wait=false;
-			br.close();
-			conn.disconnect();
-			return jsonData;*/
+			dos.write(request.getBytes());
+			dos.flush();
 			
-			try{
-				Socket s = new Socket(this.ip,80);
-				String request = "GET /data HTTP/1.1\r\n"
-								+"Host: "+this.ip+"\r\n"
-								+"Accept: */*\r\n"
-								+"Accept-Language: en-US,en;q=0.5\r\n"
-								+"Accept-Encoding: gzip, deflate\r\n"
-								+"DNT: 1\r\n"
-								+"Content-Type: application/x-www-form-urlencoded; charset=UTF-8\r\n"
-								+"X-Requested-With: XMLHttpRequest\r\n"
-								+"Content-Length: "+pitayaParams.length()+"\r\n"
-								+"Connection: keep-alive\r\n"
-								+"Pragma: no-cache\r\n"
-								+"Cache-Control: no-cache\r\n\r\n"
-								+pitayaParams;
-			//	System.out.println("-----------------//---------------------------\n"+request);
-				DataOutputStream dos = new DataOutputStream(s.getOutputStream());
-				String jsonData="",tmp="";
-				dos.write(request.getBytes());
-			//	dos.write(pitayaParams.getBytes());
-				dos.flush();
-				System.out.println();
-				BufferedReader br = new BufferedReader(new InputStreamReader(s.getInputStream()));
-					
-					while ((tmp = br.readLine()) != null){
-						jsonData +=tmp;
-					}
-				dos.close();
-				br.close();
-				s.close();
-				return jsonData;
-				
-			}catch(IOException e){
-				System.out.println(e.toString());
-				return "";
-			}
 		
-	
+			/*Read the response*/
+			InputStream input = s.getInputStream();
+			BufferedReader bf = new BufferedReader(new InputStreamReader(input));
+			StringBuilder sb =new StringBuilder();
+			int length=-1;
+            while ((tmp = bf.readLine()) != null) {
+                if (tmp.equals("")) { 
+                    break;
+                }
+                if (tmp.startsWith("Content-Length: ")) { 
+                    int index = tmp.indexOf(':') + 1;
+                    String len = tmp.substring(index).trim();
+                    length = Integer.parseInt(len);
+                }
+                System.out.println("tmp: "+tmp);
+
+                sb.append(tmp + "\r\n"); // append the request
+            } // end of while to read headers
+
+            // if there is Message body, go in to this loop
+            String json="";
+            if (length > 0) {
+                int read;
+                while ((read = input.read()) != -1) {
+                	json += ((char) read);
+                    if (json.length() == length)
+                        break;
+                }
+            }
+
+            sb.append("\r\n\r\n"+json); // adding the body to request
+            dos.close();
+			bf.close();
+			s.close();
+            return  sb.toString();
+			
+			
+		}catch(IOException e){
+			System.out.println(e.toString());
+			return "";
+		}	
 	}
 	public PitayaBuffer getBuffer (){
 		return this.pitayaBuffer;
