@@ -19,7 +19,8 @@ public class Main {
 		System.out.println("*************** WELCOME ***************");
 		System.out.println("Commands:\nstart - Start the remote pitaya service\n"
 						+ "stop - Stop the Pitaya service\n"
-						+ "shutdown - Shutdown the server");
+						+ "shutdown - Shutdown the server\n" +
+						   "***************************************");
 		Scanner sc = new Scanner(System.in);
 
 		while (true) {

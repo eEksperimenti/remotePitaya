@@ -22,7 +22,7 @@ public class PitayaDataFetcher implements Runnable{
 	}
 	public void run() {
 		try {
-			URL bazarURL = new URL("http://"+this.ip+":80/bazaar?start=scope+gen_translation");
+			URL bazarURL = new URL("http://"+this.ip+":80/bazaar?start="+experiment);
 			HttpURLConnection bazarConn = (HttpURLConnection) bazarURL.openConnection();
 			bazarConn.setRequestMethod("GET");
 			bazarConn.setRequestProperty("Accept", "application/json;charset=utf-8");
@@ -141,6 +141,32 @@ public class PitayaDataFetcher implements Runnable{
 			System.out.println(e.toString());
 			return "";
 		}	
+	}
+	public boolean stopApp(){
+		try {
+			URL stopURL = new URL("http://"+this.ip+":80/bazaar?stop=");
+			HttpURLConnection stopConn = (HttpURLConnection)stopURL.openConnection();
+
+			stopConn.setRequestMethod("GET");
+			stopConn.setRequestProperty("Host", "212.235.190.181:5950");
+			stopConn.setRequestProperty("Accept:", "*/*");
+			stopConn.setRequestProperty("Accept-Language:", "en-US,en;q=0.5");			
+			stopConn.setRequestProperty("Accept-Encoding:", "gzip, deflate");
+			stopConn.setRequestProperty("DNT:", "1");
+			stopConn.setRequestProperty("X-Requested-With:","XMLHttpRequest");
+			stopConn.setRequestProperty("Connection:","keep-alive");
+			stopConn.connect();
+			System.out.println("RESPONSE CODE: "+stopConn.getResponseCode());
+			if (stopConn.getResponseCode() == 200 || stopConn.getResponseCode() == 210)
+				return true;
+			
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return false;
 	}
 	public PitayaBuffer getBuffer (){
 		return this.pitayaBuffer;

@@ -8,6 +8,7 @@ import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -39,7 +40,6 @@ public class PitayaServer implements Runnable {
 		// init the server socket
 		// init the buffer to be used later for reading from input
 		openServerSocket(); 
-		byte[] buffer = new byte[BUFFER_SIZE]; 
 		while (this.running) {
 			try {
 				// accept incoming connections
@@ -86,8 +86,7 @@ public class PitayaServer implements Runnable {
 		            sb.append("\r\n"+content.toString()); // adding the body to request
 					data=sb.toString();
 					    
-				/*	input.read(buffer); 
-					data = new String(buffer, "UTF-8");*/
+				
 					System.out.println(data);
 					
 					// If we have a http GET request 
@@ -115,33 +114,32 @@ public class PitayaServer implements Runnable {
 							output.write(header.getBytes());
 							output.write(responseData.getBytes());
 							output.flush();
-						}else{
-						// Check if we have the specified file
-						File f = new File("apps/" + fileName);
-						if (f.exists()) { 
-							long fileSize = f.length();
-							
-							// reading from file (http body) and sending(with http header)
-							FileInputStream fis = new FileInputStream(f); 
-							
-							// Http response status line and header
-							header = "HTTP/1.1 200 OK\r\n"
-									+ "Content-type: "+contentType+"\r\n"
-									+ "Content-size: " + fileSize + "\r\n"
-									+ "Connection: Close\r\n\r\n"; 
-							output.write(header.getBytes());
-
-
-							int ch = fis.read(buffer, 0, BUFFER_SIZE);
-							while (ch != -1) {
-								output.write(buffer, 0, ch);
-								ch = fis.read(buffer, 0, BUFFER_SIZE);
-							}
-							output.flush();
-							
-						} else {
-							header = "HTTP/1.1 404 Not found\r\n";
 						}
+						else if (fileName.contains("adminControl")){
+							System.out.println("###### ADMIN REQUEST");
+							String adminResponse = "";
+							if (isTokenValid())
+								adminResponse = "{\"tokenValid\":1}";
+							else
+								adminResponse = "{\"tokenValid\":0}";
+							
+							header = "HTTP/1.1 200 OK\r\n"
+									+ "Content-type: application/json\r\n"
+									+ "Content-size: " + adminResponse.length() + "\r\n"
+									+ "Connection: Close\r\n\r\n";
+							output.write(header.getBytes());
+							output.write(adminResponse.getBytes());
+							output.flush();
+						}
+						
+						
+						else if (fileName.startsWith("/bazaar?stop") && isTokenValid()){
+							PitayaDataFetcher fetcher = fetchers[pitayaNum-1];
+							fetcher.stopApp();
+						}
+						else{
+						// Send the file
+							sendFile();
 					}
 				}else if (data.startsWith("POST")){			
 					try{
@@ -299,16 +297,62 @@ public class PitayaServer implements Runnable {
 		}
 		return true;
 	}
+	public void sendFile(){
+		try{
+			byte[] buffer = new byte[BUFFER_SIZE]; 
+		
+			File f = new File("apps/" + fileName);
+			if (f.exists()) { 
+				long fileSize = f.length();
+				
+				// reading from file (http body) and sending(with http header)
+				FileInputStream fis = new FileInputStream(f); 
+				
+				// Http response status line and header
+				String header = "HTTP/1.1 200 OK\r\n"
+						+ "Content-type: "+contentType+"\r\n"
+						+ "Content-size: " + fileSize + "\r\n"
+						+ "Connection: Close\r\n\r\n"; 
+				output.write(header.getBytes());
+		
+		
+				int ch = fis.read(buffer, 0, BUFFER_SIZE);
+				while (ch != -1) {
+					output.write(buffer, 0, ch);
+					ch = fis.read(buffer, 0, BUFFER_SIZE);
+				}
+				output.flush();
+		}else{
+			
+		}
+		}catch(IOException e){
+			e.printStackTrace();
+		} 
+	}
 	
 
 	public boolean isTokenValid() {
 		try {
-			String query =  "SELECT * FROM "
-			Class.forName("com.mysql.jdbc.Driver");
-			Connection conn = (Connection) DriverManager.getConnection("jdbc:mysql://194.249.0.123/bookedscheduler","simon","lekADOL93");
-			Statement stm = conn.createStatement();
+			String query =  "SELECT  count(i.reference_number) as num "
+							+"FROM reservation_instances as i, reservation_series as s "
+							+"WHERE i.series_id = s.series_id " 
+							+"AND s.status_id = 1 "
+							+"AND i.reference_number = '"+this.token+"' "
+							+"AND date_format(curdate(),'%d/%m/%Y') between date_format(i.start_date,'%d/%m/%Y') and date_format(i.end_date,'%d/%m/%Y')";
+			System.out.println("QUERY: "+query);
 			
-			return true;
+			Class.forName("com.mysql.jdbc.Driver");
+			Connection conn = (Connection) DriverManager.getConnection("jdbc:mysql://194.249.0.123:3306/bookedscheduler","remotePitaya","MtRZnsFm8KZ");
+			Statement stm = conn.createStatement();
+			ResultSet rs = stm.executeQuery(query);
+			if(rs.next()){
+				int num = Integer.parseInt(rs.getString("num"));
+				System.out.println("######## MYSQL RS: "+num);
+				if (num == 1)
+					return true;
+			}
+		
+				return false;
 		} catch (SQLException | ClassNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
