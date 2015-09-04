@@ -11,10 +11,12 @@ import java.net.URL;
 public class PitayaDataFetcher implements Runnable{
 	private String ip;
 	private String experiment = "";
+	private String bazarData="";
 	static PitayaBuffer pitayaBuffer;
 	private boolean wait=false;
 	private HttpURLConnection conn;
  	public PitayaDataFetcher(String ip,String experiment) {
+ 		
 		this.ip=ip;
 		this.experiment=experiment;
 		this.pitayaBuffer=new PitayaBuffer();
@@ -31,7 +33,7 @@ public class PitayaDataFetcher implements Runnable{
 			bazarConn.setRequestProperty("Connection", "keep-alive");
 			bazarConn.connect();
 			
-			
+			System.out.println("Response: "+bazarConn.getResponseCode());
 			BufferedReader br=null;
 			
 			if (bazarConn.getResponseCode() == 200 || bazarConn.getResponseCode() == 201){
@@ -40,7 +42,8 @@ public class PitayaDataFetcher implements Runnable{
 				while ((tmp = br.readLine()) != null){
 					jsonData +=tmp;
 				}
-				System.out.println("bazar:\n"+jsonData);						
+				System.out.println("bazar:\n"+jsonData);
+				bazarData = jsonData;
 				jsonData="";
 				
 			}
@@ -67,7 +70,7 @@ public class PitayaDataFetcher implements Runnable{
 					}
 				//	System.out.println("IP: "+ip+" DATA:\n"+jsonData);
 					pitayaBuffer.writeData(jsonData);
-					System.out.println("Data updated!");
+					
 					jsonData="";
 					
 				}
@@ -114,7 +117,6 @@ public class PitayaDataFetcher implements Runnable{
                     String len = tmp.substring(index).trim();
                     length = Integer.parseInt(len);
                 }
-                System.out.println("tmp: "+tmp);
 
                 sb.append(tmp + "\r\n"); // append the request
             } // end of while to read headers
@@ -167,6 +169,9 @@ public class PitayaDataFetcher implements Runnable{
 			e.printStackTrace();
 		}
 		return false;
+	}
+	public String getBazarData(){
+		return this.bazarData;
 	}
 	public PitayaBuffer getBuffer (){
 		return this.pitayaBuffer;

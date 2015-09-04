@@ -18,7 +18,7 @@ public class PitayaServer implements Runnable {
 	private ServerSocket server;
 	private Socket client;
 	private int port;
-	private boolean running;
+	private boolean running, isAdmin=false, tokenValid=false;
 	private int pitayaNum = -1;
 	private OutputStream output;
 	private InputStream input;
@@ -85,25 +85,26 @@ public class PitayaServer implements Runnable {
 		            System.out.println("Content len: "+content.length());
 		            sb.append("\r\n"+content.toString()); // adding the body to request
 					data=sb.toString();
-					    
-				
 					System.out.println(data);
-					
+				
 					// If we have a http GET request 
-					if (data.startsWith("GET") && getParameters(data)) { 
+					if (data.startsWith("GET") && getParameters(data)) {	
 						
 						//Check if we are already fetching from the desired pitaya
-						if (!runningPitaya[pitayaNum-1]){
+					/*	if (!runningPitaya[pitayaNum-1] ){
 							PitayaDataFetcher fetcher = new PitayaDataFetcher(Main.lookupTable[pitayaNum-1],this.experiment);
 							fetchers[pitayaNum-1] = fetcher;
 							Thread t = new Thread(fetcher);
 							t.start();
 							runningPitaya[pitayaNum-1] = true;
-						}
-
+						}*/
 						//If requesting data, read from pitayaBuffer and send to client
-						if (fileName.startsWith("/data")){
-							String responseData = PitayaDataFetcher.pitayaBuffer.readData();
+						if (fileName.startsWith("/data") ){
+							String responseData="";
+							if (PitayaDataFetcher.pitayaBuffer == null)
+								responseData="{\"app\":{},\"datasets\":{},\"status\":\"ERROR\",\"reason\":\"Application not loaded\"}";
+							else
+								responseData = PitayaDataFetcher.pitayaBuffer.readData();
 
 							header = "HTTP/1.1 200 OK\r\n"
 									+ "Content-type: application/json\r\n"
@@ -133,23 +134,49 @@ public class PitayaServer implements Runnable {
 						}
 						
 						
-						else if (fileName.startsWith("/bazaar?stop") && isTokenValid()){
+						else if (fileName.startsWith("/bazaar?stop") && isTokenValid() ){
 							PitayaDataFetcher fetcher = fetchers[pitayaNum-1];
 							fetcher.stopApp();
+							
+						}else if (fileName.startsWith("/bazaar?start")){
+							this.experiment = fileName.substring(fileName.indexOf("=")+1);
+							System.out.println("EX: "+this.experiment);
+							PitayaDataFetcher fetcher = new PitayaDataFetcher(Main.lookupTable[pitayaNum-1],this.experiment);
+							fetchers[pitayaNum-1] = fetcher;
+							Thread t = new Thread(fetcher);
+							t.start();
+							runningPitaya[pitayaNum-1] = true;
+							String bazarData = fetcher.getBazarData();
+							System.out.println("BazarData: "+bazarData);
+							String bazarHeader  = "HTTP/1.1 200 OK\r\n"
+									  +"Server: nginx/1.5.3\r\n"
+									  +"Date: Thu, 01 Jan 1970 02:57:27 GMT\r\n"
+									  +"Content-Type: application/json\r\n"
+									  +"Content-Length: "+bazarData.length()+"\r\n"
+									  +"Connection: close\r\n"
+									  +"Access-Control-Allow-Origin: *\r\n"
+									  +"Access-Control-Allow-Credentials: true\r\n"
+									  +"Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+									  +"Access-Control-Allow-Headers: DNT,X-Mx-ReqToken," +
+									  "Keep-Alive,User-Agent,X-Requested-With," +
+									  "If-Modified-Since,Cache-Control,Content-Type\r\n\r\n";
+							output.write(bazarHeader.getBytes());
+							output.write(bazarData.getBytes());
+							output.flush();
 						}
 						else{
 						// Send the file
 							sendFile();
 					}
-				}else if (data.startsWith("POST")){			
+				}else if (data.startsWith("POST") && getParameters(data)){			
 					try{
 							System.out.println("######### POST request ########");
 							/*data is our POST request */
 							System.out.println("Len: "+data.length());
 							
 							/*Separate the http body from the content (JSON data)*/
-							String appParams      = data.split("\r\n\r\n")[1];
-							String appBody        = data.split("\r\n\r\n")[0];
+							String appParams     = data.split("\r\n\r\n")[1];
+							String appBody       = data.split("\r\n\r\n")[0];
 							
 							/*Clean the params - not working */
 							/*Return to the app the same params and add status:ok at the end*/
@@ -160,9 +187,11 @@ public class PitayaServer implements Runnable {
 							System.out.println("CLEAN PARAMS: \n"+appParams+"|\n-------------");
 	
 							/*Get the pitaya number*/
-							String firstLine = data.split("\r\n")[0];
-							String getParams = data.split("\\?")[1];
-							String firstParam = getParams.split("&")[0];
+							String firstLine 	= data.split("\r\n")[0];
+							String resource 	= firstLine.split(" ")[1];
+							String firstParam	= resource.split("\\?")[1];
+							//String firstParam 	= getParams.split("&")[0];
+							System.out.println("FIRST PARAM: "+firstParam+" split: "+firstParam.split("=")[1]);
 							int num=-1;
 							if (firstParam.startsWith("p")) 
 								 num  = Integer.parseInt(firstParam.split("=")[1]);
@@ -250,16 +279,21 @@ public class PitayaServer implements Runnable {
 	}
 
 	public boolean getParameters(String data) {
+		
 		try {
+			//pitayaNum=-1;experiment="";token="";
 			// Split entire package into lines
 			String[] params =null;
 			String[] lines = data.split("\r\n"); 
-			
+			if (lines.length < 1)
+				return false;
 			// Split the status line in three parts (0-method, 1-URL, 2-protocol version)
 			String[] status = data.split(" "); 
 			method = status[0]; // method GET or POST
 			// Check if we have any GET parameters
+			System.out.println("Status len: "+status.length+"\n"+lines[0]);
 			if (status[1].indexOf("&") > 0) { 
+				System.out.println("status inside");
 				// if we have any parameters (resources[1]), take them apart
 				String[] resource = status[1].split("\\?"); 
 				fileName = resource[0]; 
@@ -290,6 +324,7 @@ public class PitayaServer implements Runnable {
 														// a valid number
 				return false;
 			}
+			System.out.println("## Method: "+method+" Filename: "+fileName+" pitayaNum: "+pitayaNum+" ex: "+experiment+" token: "+token);
 
 		} catch (StringIndexOutOfBoundsException e) {
 			e.printStackTrace();
@@ -332,6 +367,8 @@ public class PitayaServer implements Runnable {
 	
 
 	public boolean isTokenValid() {
+		if (this.token == null)
+			return false;
 		try {
 			String query =  "SELECT  count(i.reference_number) as num "
 							+"FROM reservation_instances as i, reservation_series as s "

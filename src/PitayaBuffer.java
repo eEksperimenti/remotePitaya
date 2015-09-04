@@ -13,6 +13,7 @@ public class PitayaBuffer {
 		writeTo= tmp;
 	}
 	public synchronized String readData(){
+		
 		return buffer[readFrom];
 	}
 	
