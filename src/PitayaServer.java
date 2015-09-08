@@ -132,8 +132,6 @@ public class PitayaServer implements Runnable {
 							output.write(adminResponse.getBytes());
 							output.flush();
 						}
-						
-						
 						else if (fileName.startsWith("/bazaar?stop") && isTokenValid() ){
 							PitayaDataFetcher fetcher = fetchers[pitayaNum-1];
 							fetcher.stopApp();
@@ -145,7 +143,8 @@ public class PitayaServer implements Runnable {
 							fetchers[pitayaNum-1] = fetcher;
 							Thread t = new Thread(fetcher);
 							t.start();
-							runningPitaya[pitayaNum-1] = true;
+													
+							Thread.sleep(1000);
 							String bazarData = fetcher.getBazarData();
 							System.out.println("BazarData: "+bazarData);
 							String bazarHeader  = "HTTP/1.1 200 OK\r\n"
@@ -239,7 +238,7 @@ public class PitayaServer implements Runnable {
 				client.close();
 				}
 
-			} catch (IOException e) {
+			} catch (IOException | InterruptedException e) {
 				if (!running && server.isClosed())
 					try {
 						server.close();

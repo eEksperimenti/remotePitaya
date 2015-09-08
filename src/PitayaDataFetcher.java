@@ -14,6 +14,7 @@ public class PitayaDataFetcher implements Runnable{
 	private String bazarData="";
 	static PitayaBuffer pitayaBuffer;
 	private boolean wait=false;
+	public static boolean bazarResponse=false;
 	private HttpURLConnection conn;
  	public PitayaDataFetcher(String ip,String experiment) {
  		
@@ -44,11 +45,12 @@ public class PitayaDataFetcher implements Runnable{
 				}
 				System.out.println("bazar:\n"+jsonData);
 				bazarData = jsonData;
+				bazarResponse=true;
 				jsonData="";
 				
 			}
 			bazarConn.disconnect();		
-		
+			System.out.println("bazarData (after  response): "+this.bazarData);
 			while (true){
 				Thread.sleep(50);
 				while(this.wait){}
