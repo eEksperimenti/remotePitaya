@@ -7,6 +7,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.Socket;
 import java.net.URL;
+import java.nio.channels.InterruptibleChannel;
 
 public class PitayaDataFetcher implements Runnable{
 	private String ip;
@@ -14,6 +15,7 @@ public class PitayaDataFetcher implements Runnable{
 	private String bazarData="";
 	static PitayaBuffer pitayaBuffer;
 	private boolean wait=false;
+	private boolean running = false;
 	public static boolean bazarResponse=false;
 	private HttpURLConnection conn;
  	public PitayaDataFetcher(String ip,String experiment) {
@@ -21,7 +23,7 @@ public class PitayaDataFetcher implements Runnable{
 		this.ip=ip;
 		this.experiment=experiment;
 		this.pitayaBuffer=new PitayaBuffer();
-		
+		this.running = true;
 	}
 	public void run() {
 		try {
@@ -51,7 +53,7 @@ public class PitayaDataFetcher implements Runnable{
 			}
 			bazarConn.disconnect();		
 			System.out.println("bazarData (after  response): "+this.bazarData);
-			while (true){
+			while (this.running){
 				Thread.sleep(50);
 				while(this.wait){}
 	
@@ -148,6 +150,7 @@ public class PitayaDataFetcher implements Runnable{
 	}
 	public boolean stopApp(){
 		try {
+			System.out.println("STOPING....");
 			URL stopURL = new URL("http://"+this.ip+":80/bazaar?stop=");
 			HttpURLConnection stopConn = (HttpURLConnection)stopURL.openConnection();
 
@@ -160,9 +163,12 @@ public class PitayaDataFetcher implements Runnable{
 			stopConn.setRequestProperty("X-Requested-With:","XMLHttpRequest");
 			stopConn.setRequestProperty("Connection:","keep-alive");
 			stopConn.connect();
+			System.out.println("Response code: "+stopConn.getResponseCode());
 			System.out.println("RESPONSE CODE: "+stopConn.getResponseCode());
-			if (stopConn.getResponseCode() == 200 || stopConn.getResponseCode() == 210)
+			if (stopConn.getResponseCode() == 200 || stopConn.getResponseCode() == 210){
+				this.running = false;
 				return true;
+			}
 			
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
@@ -172,6 +178,7 @@ public class PitayaDataFetcher implements Runnable{
 		}
 		return false;
 	}
+	
 	public String getBazarData(){
 		return this.bazarData;
 	}
@@ -180,6 +187,10 @@ public class PitayaDataFetcher implements Runnable{
 	}
 	public void setWait(boolean value ){
 		this.wait=value;
+	}
+
+	public String getEx(){
+		return this.experiment;
 	}
 	
 }

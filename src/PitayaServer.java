@@ -22,7 +22,9 @@ public class PitayaServer implements Runnable {
 	private int pitayaNum = -1;
 	private OutputStream output;
 	private InputStream input;
-	private String token, experiment, fileName, method, contentType, data = "";
+	private String token, experiment, fileName, method, contentType, data, callback = "";
+	private String startApp ="";
+	private String stopApp = "";
 	private final int BUFFER_SIZE = 1;
 	private boolean[] runningPitaya = new boolean[Main.lookupTable.length];
 	private PitayaDataFetcher[] fetchers = new PitayaDataFetcher[Main.lookupTable.length];
@@ -99,6 +101,7 @@ public class PitayaServer implements Runnable {
 							runningPitaya[pitayaNum-1] = true;
 						}*/
 						//If requesting data, read from pitayaBuffer and send to client
+						System.out.println("FILENAME: "+fileName);
 						if (fileName.startsWith("/data") ){
 							String responseData="";
 							if (PitayaDataFetcher.pitayaBuffer == null)
@@ -132,14 +135,44 @@ public class PitayaServer implements Runnable {
 							output.write(adminResponse.getBytes());
 							output.flush();
 						}
-						else if (fileName.startsWith("/bazaar?stop") && isTokenValid() ){
+						else if (fileName.equals("/pitayaStatus")){
+							System.out.println("CSF > Checking status");
+							if (!callback.equals("jsonCallBack"));
+								
+							StringBuilder jsonResponse =  new StringBuilder();
+							jsonResponse.append("{");
+							for (int i=0;i<fetchers.length;i++){
+								if (i > 0)
+									jsonResponse.append(",");
+								jsonResponse.append("\"p"+(i+1)+"\":");
+								jsonResponse.append("{\"active\":\""+((fetchers[i] == null ? "false": "true"))+"\", " +
+								"\"ex\":\""+((fetchers[i] == null ? "": fetchers[i].getEx()))+"\"}");
+
+							}
+							jsonResponse.append("}");
+							System.out.println(" JSON: "+jsonResponse.toString());
+							header = "HTTP/1.1 200 OK\r\n"
+									+ "Content-type: application/json\r\n"
+									+ "Content-size: " + jsonResponse.length() + "\r\n"
+									+ "Connection: Close\r\n\r\n";
+							output.write(header.getBytes());
+							output.write((callback+"("+jsonResponse.toString()+")").getBytes());
+							output.flush();
+						}
+
+						else if (fileName.startsWith("/bazaar") && isTokenValid() && !stopApp.equals("")){
+
+							System.out.println("stopping app");
 							PitayaDataFetcher fetcher = fetchers[pitayaNum-1];
 							fetcher.stopApp();
+							fetchers[pitayaNum-1] = null;
+							runningPitaya[pitayaNum-1] = false;
+							stopApp ="";
 							
-						}else if (fileName.startsWith("/bazaar?start")){
+						}else if (fileName.startsWith("/bazaar") && !startApp.equals("")){
 							this.experiment = fileName.substring(fileName.indexOf("=")+1);
-							System.out.println("EX: "+this.experiment);
-							PitayaDataFetcher fetcher = new PitayaDataFetcher(Main.lookupTable[pitayaNum-1],this.experiment);
+							System.out.println("EX: "+this.startApp);
+							PitayaDataFetcher fetcher = new PitayaDataFetcher(Main.lookupTable[pitayaNum-1],this.startApp);
 							fetchers[pitayaNum-1] = fetcher;
 							Thread t = new Thread(fetcher);
 							t.start();
@@ -162,6 +195,7 @@ public class PitayaServer implements Runnable {
 							output.write(bazarHeader.getBytes());
 							output.write(bazarData.getBytes());
 							output.flush();
+							startApp="";
 						}
 						else{
 						// Send the file
@@ -278,7 +312,7 @@ public class PitayaServer implements Runnable {
 	}
 
 	public boolean getParameters(String data) {
-		
+		System.out.println("--- getParameters");
 		try {
 			//pitayaNum=-1;experiment="";token="";
 			// Split entire package into lines
@@ -291,23 +325,57 @@ public class PitayaServer implements Runnable {
 			method = status[0]; // method GET or POST
 			// Check if we have any GET parameters
 			System.out.println("Status len: "+status.length+"\n"+lines[0]);
-			if (status[1].indexOf("&") > 0) { 
+			if ((status[1].split("\\?")).length > 1) { 
 				System.out.println("status inside");
 				// if we have any parameters (resources[1]), take them apart
 				String[] resource = status[1].split("\\?"); 
 				fileName = resource[0]; 
-				if (resource.length > 1) {
+				System.out.println("subFileName: "+fileName+" reseurce len: "+resource.length);
+				if (resource[1].contains("&")) {
 					params = resource[1].split("&"); // Divide each parameter
+					System.out.println("switch");
+					for (String param : params) {
+						 String value = param.split("=")[1];
+						 String name = param.split("=")[0];
+						 
+						switch (name){
+						case "p":
+							pitayaNum = Integer.parseInt(value);
+							break;
+						case "ex":
+							experiment =value;
+							break;
+						case "t":
+							token = value;
+							break;
+						case "start":
+							startApp=value;
+							break;
+						case "stop":
+							stopApp=value;
+						default:
+							break;
+						}
+					}
+				}else{
+					String[] param = resource[1].split("=");
+					System.out.println(resource[1]+" param[0]"+ param[0]+ "param[1]"+param[1]);
+					if (param[0].equals("p")) pitayaNum = Integer.parseInt(param[1]);
+					else if (param[0].equals("callback")) callback = param[1];
+					/*else if (param[0].equals("start") || param[0].equals("stop"))
+						fileName +="?"+resource[1]; */
 				}
 			} else { // If no parameter present, take the entire string
+				
 				fileName = status[1];
 			}
-			if (params != null) { //
+		/*	System.out.println("Parms len: "+params.length);
+			if (params != null) {
 				this.pitayaNum = Integer.parseInt(params[0].split("=")[1]);
 				this.experiment = (params.length > 1) ? params[1].split("=")[1] : "";
 				this.token = (params.length > 2) ? params[2].split("=")[1] : "";
 			}
-
+			*/
 			contentType = (lines[3].split(":")[1]).trim(); // Take the content type from
 													// the http request
 			// hack: for html pages use simpler
@@ -318,16 +386,20 @@ public class PitayaServer implements Runnable {
 			}else if (contentType.startsWith("*/*"))
 				contentType = "application/x-javascript";
 		
-
 			if (pitayaNum > Main.lookupTable.length) { // Check if pitayaNum is
 														// a valid number
 				return false;
 			}
-			System.out.println("## Method: "+method+" Filename: "+fileName+" pitayaNum: "+pitayaNum+" ex: "+experiment+" token: "+token);
+			System.out.println("## Method: "+method+" Filename: "+fileName+" pitayaNum: "+pitayaNum+" ex: "+experiment+" token: "+token+ "startApp: "+startApp+" stopApp: "+stopApp);
 
 		} catch (StringIndexOutOfBoundsException e) {
 			e.printStackTrace();
 			return false;
+		}catch (NumberFormatException numEx){
+			System.out.println("numberFormatException!");
+			return true;
+		}catch(NullPointerException nullEx){
+			return true;
 		}
 		return true;
 	}
