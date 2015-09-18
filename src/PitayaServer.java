@@ -25,6 +25,7 @@ public class PitayaServer implements Runnable {
 	private String token, experiment, fileName, method, contentType, data, callback = "";
 	private String startApp ="";
 	private String stopApp = "";
+	private String appsParam =  "";
 	private final int BUFFER_SIZE = 1;
 	private boolean[] runningPitaya = new boolean[Main.lookupTable.length];
 	private PitayaDataFetcher[] fetchers = new PitayaDataFetcher[Main.lookupTable.length];
@@ -92,14 +93,6 @@ public class PitayaServer implements Runnable {
 					// If we have a http GET request 
 					if (data.startsWith("GET") && getParameters(data)) {	
 						
-						//Check if we are already fetching from the desired pitaya
-					/*	if (!runningPitaya[pitayaNum-1] ){
-							PitayaDataFetcher fetcher = new PitayaDataFetcher(Main.lookupTable[pitayaNum-1],this.experiment);
-							fetchers[pitayaNum-1] = fetcher;
-							Thread t = new Thread(fetcher);
-							t.start();
-							runningPitaya[pitayaNum-1] = true;
-						}*/
 						//If requesting data, read from pitayaBuffer and send to client
 						System.out.println("FILENAME: "+fileName);
 						if (fileName.startsWith("/data") ){
@@ -158,15 +151,32 @@ public class PitayaServer implements Runnable {
 							output.write(header.getBytes());
 							output.write((callback+"("+jsonResponse.toString()+")").getBytes());
 							output.flush();
+							
 						}
+						else if(fileName.startsWith("/bazaar") && !appsParam.equals("")){
+							System.out.println("appsParam");
+							PitayaDataFetcher fetcher = new PitayaDataFetcher(Main.lookupTable[pitayaNum-1],this.startApp);
+							String apps = fetcher.sendParameters(data, "");
+							output.write(apps.getBytes());
+							output.flush();
+							appsParam ="";
+							fetcher=null;
 
+						}
+						
 						else if (fileName.startsWith("/bazaar") && isTokenValid() && !stopApp.equals("")){
 
 							System.out.println("stopping app");
 							PitayaDataFetcher fetcher = fetchers[pitayaNum-1];
-							fetcher.stopApp();
-							fetchers[pitayaNum-1] = null;
-							runningPitaya[pitayaNum-1] = false;
+							fetcher.setWait(true);
+							if (fetcher.stopApp()){
+								PitayaDataFetcher.pitayaBuffer = null;
+								runningPitaya[pitayaNum-1] = false;
+								fetcher.setWait(false);
+								fetchers[pitayaNum-1] = null;
+
+							}
+							
 							stopApp ="";
 							
 						}else if (fileName.startsWith("/bazaar") && !startApp.equals("")){
@@ -182,7 +192,6 @@ public class PitayaServer implements Runnable {
 							System.out.println("BazarData: "+bazarData);
 							String bazarHeader  = "HTTP/1.1 200 OK\r\n"
 									  +"Server: nginx/1.5.3\r\n"
-									  +"Date: Thu, 01 Jan 1970 02:57:27 GMT\r\n"
 									  +"Content-Type: application/json\r\n"
 									  +"Content-Length: "+bazarData.length()+"\r\n"
 									  +"Connection: close\r\n"
@@ -335,9 +344,11 @@ public class PitayaServer implements Runnable {
 					params = resource[1].split("&"); // Divide each parameter
 					System.out.println("switch");
 					for (String param : params) {
-						 String value = param.split("=")[1];
-						 String name = param.split("=")[0];
-						 
+						String value="",name="";
+						if (param.indexOf("=") != param.length()-1)
+						  value = param.split("=")[1];
+						  name = param.split("=")[0];
+						
 						switch (name){
 						case "p":
 							pitayaNum = Integer.parseInt(value);
@@ -352,7 +363,10 @@ public class PitayaServer implements Runnable {
 							startApp=value;
 							break;
 						case "stop":
-							stopApp=value;
+							stopApp="1";
+							break;
+						case "apps":
+							appsParam="1";
 						default:
 							break;
 						}
@@ -394,7 +408,7 @@ public class PitayaServer implements Runnable {
 
 		} catch (StringIndexOutOfBoundsException e) {
 			e.printStackTrace();
-			return false;
+			return true;
 		}catch (NumberFormatException numEx){
 			System.out.println("numberFormatException!");
 			return true;

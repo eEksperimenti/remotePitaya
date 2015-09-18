@@ -97,7 +97,11 @@ public class PitayaDataFetcher implements Runnable{
 		try{ 
 			/*Get the socket and I/O strams*/
 			Socket s = new Socket(this.ip,80);
-			String request = body+"\r\n\r\n"+pitayaParams;
+			String request ="";
+			if (pitayaParams.equals(""))
+				 request = body;
+			else
+			request = body+"\r\n\r\n"+pitayaParams;
 			System.out.println("TO PIATYA: \n"+request+"\n-------------");
 			
 			/*send the request*/
@@ -126,17 +130,22 @@ public class PitayaDataFetcher implements Runnable{
             } // end of while to read headers
 
             // if there is Message body, go in to this loop
-            String json="";
+            StringBuilder content=new StringBuilder();
+            System.out.println("Len: "+length);
             if (length > 0) {
                 int read;
-                while ((read = input.read()) != -1) {
-                	json += ((char) read);
-                    if (json.length() == length)
+                while ((read = bf.read()) != -1) {
+                	System.out.print("|"+(char) read);
+                   content.append((char) read);
+                    if (content.length() == length){
+                    	System.out.println("Content len: "+content.length()+" = "+length);
                         break;
+                    }
                 }
             }
 
-            sb.append("\r\n\r\n"+json); // adding the body to request
+            sb.append("\r\n"+content.toString()); // adding the body to request
+			String data =sb.toString();
             dos.close();
 			bf.close();
 			s.close();
@@ -148,6 +157,7 @@ public class PitayaDataFetcher implements Runnable{
 			return "";
 		}	
 	}
+	
 	public boolean stopApp(){
 		try {
 			System.out.println("STOPING....");
@@ -166,6 +176,7 @@ public class PitayaDataFetcher implements Runnable{
 			System.out.println("Response code: "+stopConn.getResponseCode());
 			System.out.println("RESPONSE CODE: "+stopConn.getResponseCode());
 			if (stopConn.getResponseCode() == 200 || stopConn.getResponseCode() == 210){
+				System.out.println("CLOSED!");
 				this.running = false;
 				return true;
 			}
