@@ -14,7 +14,7 @@ public class PitayaDataFetcher implements Runnable{
 	private String experiment = "";
 	private String bazarData="";
 	static PitayaBuffer pitayaBuffer;
-	private boolean wait=false;
+	private volatile boolean wait=false;
 	private boolean running = false;
 	public static boolean bazarResponse=false;
 	private HttpURLConnection conn;
@@ -36,26 +36,25 @@ public class PitayaDataFetcher implements Runnable{
 			bazarConn.setRequestProperty("Connection", "keep-alive");
 			bazarConn.connect();
 			
-			System.out.println("Response: "+bazarConn.getResponseCode());
 			BufferedReader br=null;
-			
+			System.out.println("START: Poslano!");
 			if (bazarConn.getResponseCode() == 200 || bazarConn.getResponseCode() == 201){
 				br = new BufferedReader(new InputStreamReader(bazarConn.getInputStream()));
 				String jsonData="",tmp="";
 				while ((tmp = br.readLine()) != null){
 					jsonData +=tmp;
 				}
-				System.out.println("bazar:\n"+jsonData);
 				bazarData = jsonData;
 				bazarResponse=true;
 				jsonData="";
+				System.out.println("START: Prejeto!");
 				
 			}
 			bazarConn.disconnect();		
-			System.out.println("bazarData (after  response): "+this.bazarData);
+		
 			while (this.running){
-				Thread.sleep(50);
-				while(this.wait){}
+				Thread.sleep(20);
+				while(this.wait){continue;}
 	
 				URL url = new URL("http://"+this.ip+":80/data");
 				conn = (HttpURLConnection) url.openConnection();
@@ -64,9 +63,10 @@ public class PitayaDataFetcher implements Runnable{
 				conn.setRequestProperty("X-Requested-With","XMLHttpRequest");
 				conn.setRequestProperty("Connection", "keep-alive");
 				conn.connect();
-			//	System.out.println("Data fetching from Pitaya: "+ip);
-						
+		
+
 				if (conn.getResponseCode() == 200 || conn.getResponseCode() == 201){
+					
 					br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
 					String jsonData="",tmp="";
 					while ((tmp = br.readLine()) != null){
@@ -102,13 +102,13 @@ public class PitayaDataFetcher implements Runnable{
 				 request = body;
 			else
 			request = body+"\r\n\r\n"+pitayaParams;
-			System.out.println("TO PIATYA: \n"+request+"\n-------------");
 			
 			/*send the request*/
 			DataOutputStream dos = new DataOutputStream(s.getOutputStream());
 			String jsonData="",tmp="";
 			dos.write(request.getBytes());
 			dos.flush();
+			
 			
 		
 			/*Read the response*/
@@ -131,14 +131,11 @@ public class PitayaDataFetcher implements Runnable{
 
             // if there is Message body, go in to this loop
             StringBuilder content=new StringBuilder();
-            System.out.println("Len: "+length);
             if (length > 0) {
                 int read;
                 while ((read = bf.read()) != -1) {
-                	System.out.print("|"+(char) read);
                    content.append((char) read);
                     if (content.length() == length){
-                    	System.out.println("Content len: "+content.length()+" = "+length);
                         break;
                     }
                 }
@@ -158,9 +155,8 @@ public class PitayaDataFetcher implements Runnable{
 		}	
 	}
 	
-	public boolean stopApp(){
+	public String stopApp(){
 		try {
-			System.out.println("STOPING....");
 			URL stopURL = new URL("http://"+this.ip+":80/bazaar?stop=");
 			HttpURLConnection stopConn = (HttpURLConnection)stopURL.openConnection();
 
@@ -173,23 +169,34 @@ public class PitayaDataFetcher implements Runnable{
 			stopConn.setRequestProperty("X-Requested-With:","XMLHttpRequest");
 			stopConn.setRequestProperty("Connection:","keep-alive");
 			stopConn.connect();
-			System.out.println("Response code: "+stopConn.getResponseCode());
-			System.out.println("RESPONSE CODE: "+stopConn.getResponseCode());
+			String jsonData="",tmp="";
 			if (stopConn.getResponseCode() == 200 || stopConn.getResponseCode() == 210){
+				
+				BufferedReader br = new BufferedReader(new InputStreamReader(stopConn.getInputStream()));
+				
+				while ((tmp = br.readLine()) != null){
+					jsonData +=tmp;
+				}
+				
 				System.out.println("CLOSED!");
 				this.running = false;
-				return true;
+				this.pitayaBuffer.clearBuffer();
+				this.pitayaBuffer=null;
+				return jsonData;
+
 			}
-			
+			return "";
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
+			return "";
+
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+			return "";
 		}
-		return false;
-	}
-	
+}
+
 	public String getBazarData(){
 		return this.bazarData;
 	}
@@ -197,7 +204,7 @@ public class PitayaDataFetcher implements Runnable{
 		return this.pitayaBuffer;
 	}
 	public void setWait(boolean value ){
-		this.wait=value;
+			this.wait=value;
 	}
 
 	public String getEx(){

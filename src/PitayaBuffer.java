@@ -7,14 +7,21 @@ public class PitayaBuffer {
 	private int readFrom = 1;
 	
 	public synchronized void writeData(String data){
-		buffer[writeTo] = data;
+	//	if (writeTo != -1)
+			buffer[writeTo] = data;
 		int tmp = readFrom;
 		readFrom = writeTo;
 		writeTo= tmp;
 	}
 	public synchronized String readData(){
-		
-		return buffer[readFrom];
+		//if (readFrom != -1)
+			return buffer[readFrom];
+		//return null;
 	}
-	
+	public void clearBuffer(){
+		buffer[writeTo] = null;
+		buffer[readFrom] = null;
+		writeTo=-1;
+		readFrom=-1;
+	}
 }
