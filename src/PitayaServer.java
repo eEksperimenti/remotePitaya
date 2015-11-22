@@ -95,7 +95,7 @@ public class PitayaServer implements Runnable {
 						System.out.println("FILENAME: "+fileName);
 						if (fileName.startsWith("/data") ){
 							String responseData="";
-							if (PitayaDataFetcher.pitayaBuffer == null)
+							if (fetchers[pitayaNum-1]==null)
 								responseData="{\"app\":{},\"datasets\":{},\"status\":\"ERROR\",\"reason\":\"Application not loaded\"}";
 							else{
 								PitayaDataFetcher fetcher = fetchers[pitayaNum-1];
@@ -162,11 +162,12 @@ public class PitayaServer implements Runnable {
 						}
 						
 						else if (fileName.startsWith("/bazaar") && isTokenValid() && !stopApp.equals("") && runningPitaya[pitayaNum-1]){
-
 							System.out.println("stopping app");
 							PitayaDataFetcher fetcher = fetchers[pitayaNum-1];
 							fetcher.setWait(true);
 							String response = fetcher.stopApp();
+							fetcher.setWait(false);
+							//fetcher.killThread();
 							runningPitaya[pitayaNum-1] = false;
 							fetchers[pitayaNum-1] = null;
 							if (!response.equals("")){
@@ -195,8 +196,15 @@ public class PitayaServer implements Runnable {
 							Thread t = new Thread(fetcher);
 							t.start();
 													
-							Thread.sleep(1000);
-							String bazarData = fetcher.getBazarData();
+						//	Thread.sleep(500);
+							
+							String bazarData="";
+							do{
+								bazarData= fetcher.getBazarData();
+								System.out.println("BAZAR DATA: "+bazarData);
+
+							}while (bazarData.equals(""));
+							
 							String bazarHeader  = "HTTP/1.1 200 OK\r\n"
 									  +"Server: nginx/1.5.3\r\n"
 									  +"Content-Type: application/json\r\n"
@@ -213,12 +221,13 @@ public class PitayaServer implements Runnable {
 							output.flush();
 
 							startApp="";
+							bazarData="";
 						}
 						else{
 						// Send the file
 							sendFile();
 					}
-				}else if (data.startsWith("POST") && getParameters(data) && isTokenValid()){			
+				}else if (data.startsWith("POST") && getParameters(data)){			
 					try{
 							System.out.println("######### POST request ########");
 							/*data is our POST request */
@@ -284,7 +293,7 @@ public class PitayaServer implements Runnable {
 				client.close();
 				}
 
-			} catch (IOException | InterruptedException e) {
+			} catch (IOException /*| InterruptedException */e) {
 				if (!running && server.isClosed())
 					try {
 						server.close();
@@ -383,13 +392,7 @@ public class PitayaServer implements Runnable {
 				
 				fileName = status[1];
 			}
-		/*	System.out.println("Parms len: "+params.length);
-			if (params != null) {
-				this.pitayaNum = Integer.parseInt(params[0].split("=")[1]);
-				this.experiment = (params.length > 1) ? params[1].split("=")[1] : "";
-				this.token = (params.length > 2) ? params[2].split("=")[1] : "";
-			}
-			*/
+		
 			contentType = (lines[3].split(":")[1]).trim(); // Take the content type from
 													// the http request
 			// hack: for html pages use simpler
@@ -449,10 +452,8 @@ public class PitayaServer implements Runnable {
 			e.printStackTrace();
 		} 
 	}
-	
-
 	public boolean isTokenValid() {
-		if (this.token == null)
+		if (this.token == null || this.token.equals(""))
 			return false;
 		try {
 			String query =  "SELECT  count(i.reference_number) as num "

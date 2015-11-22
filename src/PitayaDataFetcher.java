@@ -15,7 +15,7 @@ public class PitayaDataFetcher implements Runnable{
 	private String bazarData="";
 	static PitayaBuffer pitayaBuffer;
 	private volatile boolean wait=false;
-	private boolean running = false;
+	private volatile boolean  running = false;
 	public static boolean bazarResponse=false;
 	private HttpURLConnection conn;
  	public PitayaDataFetcher(String ip,String experiment) {
@@ -52,9 +52,9 @@ public class PitayaDataFetcher implements Runnable{
 			}
 			bazarConn.disconnect();		
 		
-			while (this.running){
-				Thread.sleep(20);
+			while (running){
 				while(this.wait){continue;}
+
 	
 				URL url = new URL("http://"+this.ip+":80/data");
 				conn = (HttpURLConnection) url.openConnection();
@@ -73,6 +73,7 @@ public class PitayaDataFetcher implements Runnable{
 						jsonData +=tmp;
 					}
 				//	System.out.println("IP: "+ip+" DATA:\n"+jsonData);
+					if (pitayaBuffer != null)
 					pitayaBuffer.writeData(jsonData);
 					
 					jsonData="";
@@ -80,10 +81,15 @@ public class PitayaDataFetcher implements Runnable{
 				}
 				br.close();
 				conn.disconnect();
+				Thread.sleep(20);
+			
+
 		}
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
+			System.out.println("PREKINJENO");
 			e.printStackTrace();
+			return;
 		} catch (MalformedURLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -183,7 +189,7 @@ public class PitayaDataFetcher implements Runnable{
 				this.pitayaBuffer.clearBuffer();
 				this.pitayaBuffer=null;
 				return jsonData;
-
+				
 			}
 			return "";
 		} catch (MalformedURLException e) {
@@ -196,6 +202,10 @@ public class PitayaDataFetcher implements Runnable{
 			return "";
 		}
 }
+/*	public void killThread(){
+		System.out.println("KILLING");
+		Thread.currentThread().interrupt();
+	}*/
 
 	public String getBazarData(){
 		return this.bazarData;
